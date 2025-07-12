@@ -1,7 +1,7 @@
 // Configuration des environnements
 const environments = {
   development: {
-    API_BASE_URL: 'http://localhost:3001',
+    API_BASE_URL: 'http://localhost:3000',
   },
   production: {
     API_BASE_URL: 'https://votre-backend-production.com',
