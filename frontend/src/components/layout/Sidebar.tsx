@@ -24,7 +24,7 @@ const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Clients', href: '/clients', icon: Building2 },
   { name: 'Techniciens', href: '/techniciens', icon: Wrench },
-  { name: 'Spécialités', href: '/specialites', icon: UserCog },
+  { name: 'Matériel', href: '/materiel', icon: Package },
   { name: 'Missions', href: '/missions', icon: ClipboardList },
   { name: 'Interventions', href: '/interventions', icon: Settings },
   { name: 'Devis', href: '/devis', icon: FileText },
@@ -33,10 +33,9 @@ const navigation = [
   { name: 'Messages', href: '/messages', icon: MessageSquare },
   { name: 'Notifications', href: '/notifications', icon: Bell },
   { name: 'Paramètres', href: '/settings', icon: Settings },
-  { name: 'Matériel', href: '/materiel', icon: Package },
 ];
-
 const systemNavigation = [
+  { name: 'Spécialités', href: '/specialites', icon: UserCog },
   { name: 'Types Paiement', href: '/types-paiement', icon: DollarSign },
   { name: 'Utilisateurs', href: '/users', icon: Users },
   { name: 'Documentation', href: '/docs', icon: ClipboardList },
@@ -97,7 +96,7 @@ export default function Sidebar() {
             <div className="pt-6">
               <div className="px-3 py-2">
                 <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  System Admin
+                  Système d Administration
                 </p>
               </div>
               {systemNavigation.map((item) => {
