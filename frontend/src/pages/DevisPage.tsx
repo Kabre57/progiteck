@@ -459,8 +459,8 @@ export default function DevisPage() {
                         <tr key={ligne.id}>
                           <td className="px-6 py-4 text-sm text-gray-900">{ligne.designation}</td>
                           <td className="px-6 py-4 text-sm text-gray-900">{ligne.quantite}</td>
-                          <td className="px-6 py-4 text-sm text-gray-900">{ligne.prixUnitaire.toFixed(2)} €</td>
-                          <td className="px-6 py-4 text-sm text-gray-900">{ligne.montantHT.toFixed(2)} €</td>
+                          <td className="px-6 py-4 text-sm text-gray-900">{ligne.prixUnitaire.toFixed(2)} FCFA</td>
+                          <td className="px-6 py-4 text-sm text-gray-900">{ligne.montantHT.toFixed(2)} FCFA</td>
                         </tr>
                       ))}
                     </tbody>
