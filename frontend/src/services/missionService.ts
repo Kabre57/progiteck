@@ -5,8 +5,8 @@ export interface CreateMissionData {
   natureIntervention: string;
   objectifDuContrat: string;
   description?: string;
-  priorite?: string;
-  statut?: string;
+  priorite?: 'normale' | 'urgente';
+  statut?: 'planifiee' | 'en_cours' | 'terminee' | 'annulee';
   dateSortieFicheIntervention: string;
   clientId: number;
 }
@@ -22,11 +22,13 @@ export const missionService = {
     if (params?.limit) queryParams.append('limit', params.limit.toString());
     if (params?.clientId) queryParams.append('clientId', params.clientId.toString());
 
-    return apiClient.get<Mission[]>(`/api/missions?${queryParams.toString()}`);
+    const response = await apiClient.get<Mission[]>(`/api/missions?${queryParams.toString()}`);
+    return response;
   },
 
   async getMission(id: string) {
-    return apiClient.get<Mission>(`/api/missions/${encodeURIComponent(id)}`);
+    const response = await apiClient.get<Mission>(`/api/missions/${encodeURIComponent(id)}`);
+    return response;
   },
 
   async createMission(data: CreateMissionData) {
@@ -44,7 +46,8 @@ export const missionService = {
       };
       
       console.log('Sending mission data:', missionData);
-      return apiClient.post<Mission>('/api/missions', missionData);
+      const response = await apiClient.post<Mission>('/api/missions', missionData);
+      return response;
     } catch (error) {
       console.error('Mission validation error:', error);
       throw error;

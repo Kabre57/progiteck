@@ -1,6 +1,20 @@
 import { useState } from 'react';
-import { Materiel, CreateMaterielData } from '@/types';
+import { Materiel } from '@/types';
 import toast from 'react-hot-toast';
+
+interface CreateMaterielData {
+  reference: string;
+  designation: string;
+  description?: string;
+  quantiteTotale: number;
+  seuilAlerte: number;
+  emplacement?: string;
+  categorie: string;
+  prixUnitaire?: number;
+  fournisseur?: string;
+  dateAchat?: string;
+  garantie?: string;
+}
 
 interface MaterielFormProps {
   materiel?: Materiel;

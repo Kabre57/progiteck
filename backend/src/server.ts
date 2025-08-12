@@ -10,7 +10,7 @@ import { cacheService } from '@/config/cache';
 import { performanceMonitoring, getHealthStatus } from '@/middleware/monitoring';
 import routes from '@/routes';
 
-const app = express();
+const app: express.Application = express();
 const PORT = process.env.PORT || 3000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 

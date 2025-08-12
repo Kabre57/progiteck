@@ -11,7 +11,7 @@ import { authenticateToken, requireRoles } from '@/middleware/auth';
 import { validate } from '@/middleware/validation';
 import { cache, invalidateCache } from '@/middleware/cache';
 
-const router = Router();
+const router: Router = Router();
 
 // Validation for client creation
 const createClientValidation = [

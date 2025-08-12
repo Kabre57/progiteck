@@ -119,21 +119,21 @@ model Client {
 }
 
 model Mission {
-  numIntervention              String   @id
-  natureIntervention           String
-  objectifDuContrat           String
-  description                 String?
-  priorite                      String?       @default("normale")
-  statut                        String?       @default("planifiee")
+  numIntervention String   @id @unique
+  natureIntervention String
+  objectifDuContrat String
+  description String?
+  priorite String? @default("normale")
+  statut String? @default("planifiee")
   dateSortieFicheIntervention DateTime
-  clientId                    Int
-  createdAt                   DateTime @default(now())
-  updatedAt                   DateTime @updatedAt
+  clientId Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   
-  client        Client           @relation(fields: [clientId], references: [id])
+  client Client @relation(fields: [clientId], references: [id])
   interventions Intervention[]
-  rapports      RapportMission[]
-  devis         Devis[]
+  rapports RapportMission[]
+  devis Devis[]
   
   @@map("missions")
 }

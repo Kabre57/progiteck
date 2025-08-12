@@ -77,7 +77,7 @@ export const getTechnicienById = async (
 ): Promise<void> => {
   try {
     const { id } = req.params;
-    const technicienId = parseInt(id);
+    const technicienId = parseInt(id as string);
 
     const technicien = await prisma.technicien.findUnique({
       where: { id: technicienId },
@@ -171,7 +171,7 @@ export const createTechnicien = async (
         prenom,
         contact,
         specialiteId,
-        utilisateurId
+        utilisateurId: utilisateurId ?? null
       },
       include: {
         specialite: true,
@@ -201,7 +201,7 @@ export const updateTechnicien = async (
 ): Promise<void> => {
   try {
     const { id } = req.params;
-    const technicienId = parseInt(id);
+    const technicienId = parseInt(id as string);
     const updateData: Partial<CreateTechnicienRequest> = req.body;
 
     // Vérifier que le technicien existe
@@ -238,7 +238,7 @@ export const updateTechnicien = async (
       }
 
       const existingLink = await prisma.technicien.findUnique({
-        where: { utilisateurId: updateData.utilisateurId }
+        where: { utilisateurId: updateData.utilisateurId as number }
       });
 
       if (existingLink) {
@@ -278,7 +278,7 @@ export const deleteTechnicien = async (
 ): Promise<void> => {
   try {
     const { id } = req.params;
-    const technicienId = parseInt(id);
+    const technicienId = parseInt(id as string);
 
     // Vérifier que le technicien existe
     const technicien = await prisma.technicien.findUnique({

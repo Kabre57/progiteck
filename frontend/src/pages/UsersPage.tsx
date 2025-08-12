@@ -82,19 +82,39 @@ export default function UsersPage() {
     setShowEditModal(true);
   };
 
-  const handleUpdate = async (data: Partial<CreateUserData>) => {
-    if (selectedUser) {
-      try {
-        await userService.updateUser(selectedUser.id, data);
-        toast.success('Utilisateur modifié avec succès');
-        setShowEditModal(false);
-        setSelectedUser(null);
-        setRefreshTrigger(prev => prev + 1);
-      } catch (error) {
-        // Erreur déjà gérée dans le formulaire
-      }
+const handleUpdate = async (data: Partial<CreateUserData>) => {
+  if (!selectedUser) return;
+
+  try {
+    // Ajouter l'ID du rôle si manquant
+    const payload = {
+      ...data,
+      roleId: data.roleId || selectedUser.role.id
+    };
+
+    const response = await userService.updateUser(selectedUser.id, payload);
+    
+    if (response.success) {
+      toast.success(response.message);
+      setRefreshTrigger(prev => prev + 1);
+    } else {
+      toast.error(response.error || 'Erreur inconnue');
     }
-  };
+  } catch (error: any) {
+    const errorMessage = error.response?.data?.error 
+      || error.response?.data?.message
+      || 'Échec de la mise à jour';
+      
+    toast.error(errorMessage);
+    console.error('Update failed:', {
+      error: error.response?.data,
+      payload: data
+    });
+  } finally {
+    setShowEditModal(false);
+    setSelectedUser(null);
+  }
+};
 
   const handleView = (user: UserType) => {
     setSelectedUser(user);

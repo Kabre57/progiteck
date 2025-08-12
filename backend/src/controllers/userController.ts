@@ -5,7 +5,7 @@ import { AuthenticatedRequest } from '@/middleware/auth';
 import { sendSuccess, sendSuccessWithPagination, sendError } from '@/utils/response';
 import { getPagination, createPaginationMeta } from '@/utils/pagination';
 import { 
-  UpdateProfileRequest, 
+ 
   ChangePasswordRequest,
   CreateUserRequest,
   UpdateUserRequest 
@@ -51,7 +51,6 @@ export const getUsers = async (
             select: {
               id: true,
               libelle: true,
-              description: true
             }
           },
           technicien: {
@@ -120,7 +119,6 @@ export const getProfile = async (
           select: {
             id: true,
             libelle: true,
-            description: true
           }
         },
         technicien: {
@@ -131,7 +129,6 @@ export const getProfile = async (
               select: {
                 id: true,
                 libelle: true,
-                description: true
               }
             }
           }
@@ -152,87 +149,6 @@ export const getProfile = async (
 };
 
 export const updateProfile = async (
-  req: AuthenticatedRequest,
-  res: Response
-): Promise<void> => {
-  try {
-    const userId = req.user!.id;
-    const updateData: UpdateProfileRequest = req.body;
-
-    // Vérifier que l'utilisateur existe
-    const existingUser = await prisma.utilisateur.findUnique({
-      where: { id: userId }
-    });
-
-    if (!existingUser) {
-      sendError(res, 'Utilisateur non trouvé', 404);
-      return;
-    }
-
-    // Si email est modifié, vérifier qu'il n'existe pas déjà
-    if (updateData.email && updateData.email !== existingUser.email) {
-      const emailExists = await prisma.utilisateur.findUnique({
-        where: { email: updateData.email }
-      });
-
-      if (emailExists) {
-        sendError(res, 'Un utilisateur avec cet email existe déjà', 400);
-        return;
-      }
-    }
-
-    const user = await prisma.utilisateur.update({
-      where: { id: userId },
-      data: updateData,
-      select: {
-        id: true,
-        nom: true,
-        prenom: true,
-        email: true,
-        phone: true,
-        theme: true,
-        displayName: true,
-        address: true,
-        state: true,
-        country: true,
-        designation: true,
-        balance: true,
-        emailStatus: true,
-        kycStatus: true,
-        lastLogin: true,
-        status: true,
-        createdAt: true,
-        role: {
-          select: {
-            id: true,
-            libelle: true,
-            description: true
-          }
-        },
-        technicien: {
-          select: {
-            id: true,
-            contact: true,
-            specialite: {
-              select: {
-                id: true,
-                libelle: true,
-                description: true
-              }
-            }
-          }
-        }
-      }
-    });
-
-    sendSuccess(res, user, 'Profil mis à jour avec succès');
-  } catch (error) {
-    logger.error('Error updating profile:', error);
-    sendError(res, 'Erreur lors de la mise à jour du profil');
-  }
-};
-
-export const changePassword = async (
   req: AuthenticatedRequest,
   res: Response
 ): Promise<void> => {
@@ -325,13 +241,13 @@ export const createUser = async (
         prenom,
         email,
         motDePasse: hashedPassword,
-        phone,
+        phone: phone || null,
         theme: theme || 'light',
-        displayName,
-        address,
-        state,
-        country,
-        designation,
+        displayName: displayName || null,
+        address: address || null,
+        state: state || null,
+        country: country || null,
+        designation: designation || null,
         roleId,
         status: status || 'active'
       },
@@ -354,7 +270,6 @@ export const createUser = async (
           select: {
             id: true,
             libelle: true,
-            description: true
           }
         }
       }
@@ -399,7 +314,6 @@ export const getUserById = async (
           select: {
             id: true,
             libelle: true,
-            description: true
           }
         },
         technicien: {
@@ -410,14 +324,13 @@ export const getUserById = async (
               select: {
                 id: true,
                 libelle: true,
-                description: true
               }
             }
           }
         },
         _count: {
           select: {
-            messagesSent: true,
+            messages: true,
             messagesReceived: true,
             notifications: true,
             auditLogs: true
@@ -438,102 +351,56 @@ export const getUserById = async (
   }
 };
 
-export const updateUser = async (
-  req: AuthenticatedRequest,
-  res: Response
-): Promise<void> => {
+export const updateUser = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const userId = parseInt(id as string);
+    const userId = parseInt(id);
     const updateData: UpdateUserRequest = req.body;
 
-    // Vérifier que l'utilisateur existe
+    // Log des données reçues
+    logger.debug('Update payload:', { userId, updateData });
+
+    // Vérification de l'existence de l'utilisateur
     const existingUser = await prisma.utilisateur.findUnique({
-      where: { id: userId }
+      where: { id: userId },
+      include: { role: true }
     });
 
     if (!existingUser) {
-      sendError(res, 'Utilisateur non trouvé', 404);
-      return;
+      return sendError(res, 'Utilisateur non trouvé', 404);
     }
 
-    // Si email est modifié, vérifier qu'il n'existe pas déjà
-    if (updateData.email && updateData.email !== existingUser.email) {
-      const emailExists = await prisma.utilisateur.findUnique({
-        where: { email: updateData.email }
-      });
-
-      if (emailExists) {
-        sendError(res, 'Un utilisateur avec cet email existe déjà', 400);
-        return;
-      }
-    }
-
-    // Si roleId est fourni, vérifier qu'il existe
+    // Vérification du rôle
     if (updateData.roleId) {
-      const role = await prisma.role.findUnique({
+      const roleExists = await prisma.role.findUnique({
         where: { id: updateData.roleId }
       });
-
-      if (!role) {
-        sendError(res, 'Rôle non trouvé', 404);
-        return;
+      if (!roleExists) {
+        return sendError(res, 'Rôle spécifié non valide', 400);
       }
     }
 
-    // Si motDePasse est fourni, le hacher
-    if (updateData.motDePasse) {
-      updateData.motDePasse = await bcrypt.hash(updateData.motDePasse, 12);
+    // Vérification email unique (sauf pour l'utilisateur courant)
+    if (updateData.email && updateData.email !== existingUser.email) {
+      const emailUser = await prisma.utilisateur.findUnique({
+        where: { email: updateData.email }
+      });
+      if (emailUser) {
+        return sendError(res, 'Email déjà utilisé par un autre utilisateur', 400);
+      }
     }
 
-    const user = await prisma.utilisateur.update({
+    // Mise à jour
+    const updatedUser = await prisma.utilisateur.update({
       where: { id: userId },
       data: updateData,
-      select: {
-        id: true,
-        nom: true,
-        prenom: true,
-        email: true,
-        phone: true,
-        theme: true,
-        displayName: true,
-        address: true,
-        state: true,
-        country: true,
-        designation: true,
-        balance: true,
-        emailStatus: true,
-        kycStatus: true,
-        lastLogin: true,
-        status: true,
-        createdAt: true,
-        role: {
-          select: {
-            id: true,
-            libelle: true,
-            description: true
-          }
-        },
-        technicien: {
-          select: {
-            id: true,
-            contact: true,
-            specialite: {
-              select: {
-                id: true,
-                libelle: true,
-                description: true
-              }
-            }
-          }
-        }
-      }
+      include: { role: true }
     });
 
-    sendSuccess(res, user, 'Utilisateur mis à jour avec succès');
+    sendSuccess(res, updatedUser, 'Utilisateur mis à jour');
   } catch (error) {
-    logger.error('Error updating user:', error);
-    sendError(res, 'Erreur lors de la mise à jour de l\'utilisateur');
+    logger.error('Update error:', error);
+    sendError(res, 'Erreur de mise à jour', 500);
   }
 };
 
@@ -558,11 +425,11 @@ export const deleteUser = async (
       include: {
         technicien: {
           include: {
-            technicienInterventions: true,
-            rapportsMission: true
+            interventions: true,
+            rapports: true
           }
         },
-        messagesSent: true,
+        messages: true,
         messagesReceived: true,
         notifications: true,
         auditLogs: true
@@ -575,10 +442,8 @@ export const deleteUser = async (
     }
 
     // Vérifier s'il y a des données liées critiques
-    const hasLinkedData = 
-      (user.technicien?.technicienInterventions?.length || 0) > 0 ||
-      (user.technicien?.rapportsMission?.length || 0) > 0;
-
+    const hasLinkedData = (user.technicien?.interventions && user.technicien.interventions.length > 0) ||
+      (user.technicien?.rapports && user.technicien.rapports.length > 0);
     if (hasLinkedData) {
       sendError(
         res,
@@ -699,7 +564,6 @@ export const getRoles = async (
       select: {
         id: true,
         libelle: true,
-        description: true,
         _count: {
           select: {
             utilisateurs: true
@@ -717,3 +581,48 @@ export const getRoles = async (
     sendError(res, 'Erreur lors de la récupération des rôles');
   }
 };
+
+export const changePassword = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const userId = req.user!.id;
+    const { currentPassword, newPassword }: ChangePasswordRequest = req.body;
+
+    // Récupérer l'utilisateur avec le mot de passe
+    const user = await prisma.utilisateur.findUnique({
+      where: { id: userId }
+    });
+
+    if (!user) {
+      sendError(res, 'Utilisateur non trouvé', 404);
+      return;
+    }
+
+    // Vérifier le mot de passe actuel
+    const isValidPassword = await bcrypt.compare(currentPassword, user.motDePasse);
+    if (!isValidPassword) {
+      sendError(res, 'Mot de passe actuel incorrect', 400);
+      return;
+    }
+
+    // Hacher le nouveau mot de passe
+    const hashedNewPassword = await bcrypt.hash(newPassword, 12);
+
+    // Mettre à jour le mot de passe
+    await prisma.utilisateur.update({
+      where: { id: userId },
+      data: {
+        motDePasse: hashedNewPassword
+      }
+    });
+
+    sendSuccess(res, null, 'Mot de passe modifié avec succès');
+  } catch (error) {
+    logger.error('Error changing password:', error);
+    sendError(res, 'Erreur lors de la modification du mot de passe');
+  }
+};
+
+

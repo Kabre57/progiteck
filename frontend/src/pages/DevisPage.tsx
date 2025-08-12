@@ -440,33 +440,33 @@ export default function DevisPage() {
                   <p className="mt-1 text-sm text-gray-900">{selectedDevis.description}</p>
                 </div>
               )}
+{/* Lignes du devis */}
+<div>
+  <label className="block text-sm font-medium text-gray-700 mb-2">Lignes du devis</label>
+  <div className="overflow-x-auto">
+    <table className="min-w-full divide-y divide-gray-200">
+      <thead className="bg-gray-50">
+        <tr>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Désignation</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Qté</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Prix unitaire</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Montant HT</th>
+        </tr>
+      </thead>
+      <tbody className="bg-white divide-y divide-gray-200">
+        {selectedDevis.lignes.map((ligne) => (
+          <tr key={ligne.id}>
+            <td className="px-6 py-4 text-sm text-gray-900">{ligne.designation}</td>
+            <td className="px-6 py-4 text-sm text-gray-900">{ligne.quantite}</td>
+            <td className="px-6 py-4 text-sm text-gray-900">{ligne.prixUnitaire.toFixed(2)} FCFA</td>
+            <td className="px-6 py-4 text-sm text-gray-900">{ligne.montantHT.toFixed(2)} FCFA</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+</div>
 
-              {/* Lignes du devis */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Lignes du devis</label>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Désignation</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Qté</th>
-                        <td className="px-6 py-4 text-sm text-gray-900">{ligne.prixUnitaire.toLocaleString('fr-FR')} FCFA</td>
-                        <td className="px-6 py-4 text-sm text-gray-900">{ligne.montantHT.toLocaleString('fr-FR')} FCFA</td>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {selectedDevis.lignes.map((ligne) => (
-                        <tr key={ligne.id}>
-                          <td className="px-6 py-4 text-sm text-gray-900">{ligne.designation}</td>
-                          <td className="px-6 py-4 text-sm text-gray-900">{ligne.quantite}</td>
-                          <td className="px-6 py-4 text-sm text-gray-900">{ligne.prixUnitaire.toFixed(2)} FCFA</td>
-                          <td className="px-6 py-4 text-sm text-gray-900">{ligne.montantHT.toFixed(2)} FCFA</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
 
               {/* Totaux */}
               <div className="bg-gray-50 p-4 rounded-lg">

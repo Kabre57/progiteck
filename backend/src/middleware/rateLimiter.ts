@@ -23,21 +23,21 @@ export const createRateLimiter = (windowMs: number, max: number, message: string
   });
 };
 
-// Rate limiters spécifiques
+// Rate limiters spécifiques avec limites de production appropriées
 export const generalLimiter = createRateLimiter(
   15 * 60 * 1000, // 15 minutes
-  100, // 100 requêtes par fenêtre
+  500, // 500 requêtes par fenêtre (limite raisonnable pour la production)
   'Trop de requêtes, veuillez réessayer plus tard'
 );
 
 export const authLimiter = createRateLimiter(
   15 * 60 * 1000, // 15 minutes
-  5, // 5 tentatives de connexion par fenêtre
+  10, // 10 tentatives de connexion par fenêtre (sécurité renforcée)
   'Trop de tentatives de connexion, veuillez réessayer plus tard'
 );
 
 export const apiLimiter = createRateLimiter(
   1 * 60 * 1000, // 1 minute
-  100, // 100 requêtes par minute (augmenté pour les tests)
+  100, // 100 requêtes par minute (limite appropriée pour l'usage normal)
   'Limite d\'API atteinte, veuillez ralentir vos requêtes'
 );

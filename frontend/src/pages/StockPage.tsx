@@ -160,6 +160,15 @@ export default function StockPage() {
       ),
     },
     {
+      key: 'fournisseur' as keyof Materiel,
+      title: 'Fournisseur',
+      render: (fournisseur: string) => (
+        <span className="text-sm text-gray-900 dark:text-white">
+          {fournisseur || '-'}
+        </span>
+      ),
+    },
+    {
       key: 'prixUnitaire' as keyof Materiel,
       title: 'Prix unitaire',
       render: (prix: number) => (

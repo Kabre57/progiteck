@@ -22,14 +22,14 @@ export const getTypesPaiement = async (req: Request, res: Response): Promise<voi
     sendSuccess(res, typesPaiement, 'Types de paiement récupérés avec succès');
   } catch (error) {
     logger.error('Error fetching types paiement:', error);
-    sendError(res, 'Erreur lors de la récupération des types de paiement');
+    sendError(res, 'Erreur lors de la récupération des types de paiement', 500);
   }
 };
 
 export const getTypePaiementById = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const typePaiementId = parseInt(id);
+    const typePaiementId = parseInt(id as string);
 
     const typePaiement = await prisma.typePaiement.findUnique({
       where: { id: typePaiementId },
@@ -65,7 +65,6 @@ export const createTypePaiement = async (req: Request, res: Response): Promise<v
       actif
     }: CreateTypePaiementRequest = req.body;
 
-    // Vérifier que le libellé n'existe pas déjà
     const existingType = await prisma.typePaiement.findUnique({
       where: { libelle }
     });
@@ -78,7 +77,7 @@ export const createTypePaiement = async (req: Request, res: Response): Promise<v
     const typePaiement = await prisma.typePaiement.create({
       data: {
         libelle,
-        description,
+        description: description ?? null,
         delaiPaiement,
         tauxRemise,
         actif: actif ?? true
@@ -102,10 +101,9 @@ export const createTypePaiement = async (req: Request, res: Response): Promise<v
 export const updateTypePaiement = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const typePaiementId = parseInt(id);
+    const typePaiementId = parseInt(id as string);
     const updateData: UpdateTypePaiementRequest = req.body;
 
-    // Vérifier que le type de paiement existe
     const existingType = await prisma.typePaiement.findUnique({
       where: { id: typePaiementId }
     });
@@ -115,7 +113,6 @@ export const updateTypePaiement = async (req: Request, res: Response): Promise<v
       return;
     }
 
-    // Si libellé est modifié, vérifier qu'il n'existe pas déjà
     if (updateData.libelle && updateData.libelle !== existingType.libelle) {
       const libelleExists = await prisma.typePaiement.findUnique({
         where: { libelle: updateData.libelle }
@@ -149,9 +146,8 @@ export const updateTypePaiement = async (req: Request, res: Response): Promise<v
 export const deleteTypePaiement = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const typePaiementId = parseInt(id);
+    const typePaiementId = parseInt(id as string);
 
-    // Vérifier que le type de paiement existe
     const typePaiement = await prisma.typePaiement.findUnique({
       where: { id: typePaiementId },
       include: {
@@ -164,7 +160,6 @@ export const deleteTypePaiement = async (req: Request, res: Response): Promise<v
       return;
     }
 
-    // Vérifier qu'il n'y a pas de clients liés
     if (typePaiement.clients.length > 0) {
       sendError(
         res,

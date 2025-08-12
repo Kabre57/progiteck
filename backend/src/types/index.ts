@@ -38,13 +38,13 @@ export interface UpdateProfileRequest {
   nom?: string;
   prenom?: string;
   email?: string;
-  phone?: string;
+  phone?: string | null;
   theme?: string;
-  displayName?: string;
-  address?: string;
-  state?: string;
-  country?: string;
-  designation?: string;
+  displayName?: string | null;
+  address?: string | null;
+  state?: string | null;
+  country?: string | null;
+  designation?: string | null;
 }
 
 export interface ChangePasswordRequest {
@@ -57,13 +57,13 @@ export interface CreateUserRequest {
   prenom: string;
   email: string;
   motDePasse: string;
-  phone?: string;
+  phone?: string | null;
   theme?: string;
-  displayName?: string;
-  address?: string;
-  state?: string;
-  country?: string;
-  designation?: string;
+  displayName?: string | null;
+  address?: string | null;
+  state?: string | null;
+  country?: string | null;
+  designation?: string | null;
   roleId: number;
   status?: string;
 }
@@ -73,13 +73,13 @@ export interface UpdateUserRequest {
   prenom?: string;
   email?: string;
   motDePasse?: string;
-  phone?: string;
+  phone?: string | null;
   theme?: string;
-  displayName?: string;
-  address?: string;
-  state?: string;
-  country?: string;
-  designation?: string;
+  displayName?: string | null;
+  address?: string | null;
+  state?: string | null;
+  country?: string | null;
+  designation?: string | null;
   roleId?: number;
   status?: string;
 }
@@ -88,7 +88,7 @@ export interface CreateDevisRequest {
   clientId: number;
   missionId?: number;
   titre: string;
-  description?: string;
+  description?: string | null;
   tauxTVA: number;
   dateValidite: string;
   lignes: Array<{
@@ -112,7 +112,7 @@ export interface CreateRapportRequest {
   missionId: number;
   images?: Array<{
     url: string;
-    description?: string;
+    description?: string | null;
   }>;
 }
 
@@ -153,4 +153,36 @@ export interface UpdateInterventionRequest {
     commentaire?: string;
   }>;
 }
+
+
+
+
+
+export interface CreateTypePaiementRequest {
+  libelle: string;
+  description?: string | null;
+  delaiPaiement?: number;
+  tauxRemise?: number;
+  actif?: boolean;
+}
+
+export interface UpdateTypePaiementRequest {
+  libelle?: string;
+  description?: string | null;
+  delaiPaiement?: number;
+  tauxRemise?: number;
+  actif?: boolean;
+}
+
+
+
+
+export interface CreateTechnicienRequest {
+  nom: string;
+  prenom: string;
+  contact: string;
+  specialiteId: number;
+  utilisateurId?: number | null;
+}
+
 

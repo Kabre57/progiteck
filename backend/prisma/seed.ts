@@ -4,313 +4,164 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Début du seeding...');
+  console.log('🌱 Initialisation de la base de données...');
 
-  // Nettoyer les données existantes (optionnel)
-  console.log('🧹 Nettoyage des données existantes...');
-  
-  // Créer les rôles
-  console.log('👥 Création des rôles...');
-  const adminRole = await prisma.role.upsert({
-    where: { libelle: 'admin' },
-    update: {},
-    create: {
-      libelle: 'admin'
+  try {
+    // Créer le rôle ADMIN s'il n'existe pas
+    let adminRole = await prisma.role.findFirst({
+      where: { libelle: 'ADMIN' }
+    });
+
+    if (!adminRole) {
+      console.log('📝 Création du rôle ADMIN...');
+      adminRole = await prisma.role.create({
+        data: {
+          libelle: 'ADMIN'
+        }
+      });
+      console.log('✅ Rôle ADMIN créé');
+    } else {
+      console.log('ℹ️  Rôle ADMIN existe déjà');
     }
-  });
 
-  const managerRole = await prisma.role.upsert({
-    where: { libelle: 'manager' },
-    update: {},
-    create: {
-      libelle: 'manager'
+    // Créer le rôle USER s'il n'existe pas
+    let userRole = await prisma.role.findFirst({
+      where: { libelle: 'USER' }
+    });
+
+    if (!userRole) {
+      console.log('📝 Création du rôle USER...');
+      userRole = await prisma.role.create({
+        data: {
+          libelle: 'USER'
+        }
+      });
+      console.log('✅ Rôle USER créé');
+    } else {
+      console.log('ℹ️  Rôle USER existe déjà');
     }
-  });
 
-  const technicienRole = await prisma.role.upsert({
-    where: { libelle: 'technicien' },
-    update: {},
-    create: {
-      libelle: 'technicien'
+    // Créer le rôle TECHNICIEN s'il n'existe pas
+    let technicienRole = await prisma.role.findFirst({
+      where: { libelle: 'TECHNICIEN' }
+    });
+
+    if (!technicienRole) {
+      console.log('📝 Création du rôle TECHNICIEN...');
+      technicienRole = await prisma.role.create({
+        data: {
+          libelle: 'TECHNICIEN'
+        }
+      });
+      console.log('✅ Rôle TECHNICIEN créé');
+    } else {
+      console.log('ℹ️  Rôle TECHNICIEN existe déjà');
     }
-  });
 
-  // Créer les utilisateurs
-  console.log('👤 Création des utilisateurs...');
-  const hashedPassword = await bcrypt.hash('password123', 10);
+    // Vérifier si l'utilisateur admin existe
+    const existingAdmin = await prisma.utilisateur.findUnique({
+      where: { email: 'admin@progitek.com' }
+    });
 
-  const adminUser = await prisma.utilisateur.upsert({
-    where: { email: 'admin@progitek.com' },
-    update: {},
-    create: {
-      nom: 'Admin',
-      prenom: 'System',
-      email: 'admin@progitek.com',
-      motDePasse: hashedPassword,
-      phone: '+33123456789',
-      displayName: 'Administrateur',
-      status: 'active',
-      roleId: adminRole.id
+    if (!existingAdmin) {
+      console.log('👤 Création de l\'utilisateur administrateur...');
+      
+      // Hasher le mot de passe
+      const hashedPassword = await bcrypt.hash('Admin123!', 12);
+      
+      // Créer l'utilisateur admin
+      const adminUser = await prisma.utilisateur.create({
+        data: {
+          nom: 'Admin',
+          prenom: 'System',
+          email: 'admin@progitek.com',
+          motDePasse: hashedPassword,
+          phone: '0000000000',
+          theme: 'light',
+          displayName: 'Administrateur',
+          status: 'active',
+          roleId: adminRole.id
+        }
+      });
+      
+      console.log('✅ Utilisateur administrateur créé');
+      console.log('📧 Email: admin@progitek.com');
+      console.log('🔑 Mot de passe: Admin123!');
+    } else {
+      console.log('ℹ️  Utilisateur administrateur existe déjà');
     }
-  });
 
-  const managerUser = await prisma.utilisateur.upsert({
-    where: { email: 'manager@progitek.com' },
-    update: {},
-    create: {
-      nom: 'Manager',
-      prenom: 'Test',
-      email: 'manager@progitek.com',
-      motDePasse: hashedPassword,
-      phone: '+33123456790',
-      displayName: 'Manager de test',
-      status: 'active',
-      roleId: managerRole.id
+    // Créer quelques spécialités de base
+    const specialites = [
+      { libelle: 'Électricité', description: 'Installation et maintenance électrique' },
+      { libelle: 'Plomberie', description: 'Installation et réparation de plomberie' },
+      { libelle: 'Chauffage', description: 'Installation et maintenance de systèmes de chauffage' },
+      { libelle: 'Climatisation', description: 'Installation et maintenance de systèmes de climatisation' },
+      { libelle: 'Domotique', description: 'Installation de systèmes domotiques' }
+    ];
+
+    for (const specialite of specialites) {
+      const existing = await prisma.specialite.findFirst({
+        where: { libelle: specialite.libelle }
+      });
+
+      if (!existing) {
+        await prisma.specialite.create({
+          data: specialite
+        });
+        console.log(`✅ Spécialité "${specialite.libelle}" créée`);
+      }
     }
-  });
 
-  // Créer les spécialités
-  console.log('🔧 Création des spécialités...');
-  const specialiteElectricite = await prisma.specialite.upsert({
-    where: { libelle: 'Électricité' },
-    update: {},
-    create: {
-      libelle: 'Électricité',
-      description: 'Installation et maintenance électrique'
+    // Créer quelques types de paiement de base
+    const typesPaiement = [
+      { 
+        libelle: 'Comptant', 
+        description: 'Paiement immédiat', 
+        delaiPaiement: 0, 
+        tauxRemise: 0, 
+        actif: true 
+      },
+      { 
+        libelle: '30 jours', 
+        description: 'Paiement à 30 jours', 
+        delaiPaiement: 30, 
+        tauxRemise: 0, 
+        actif: true 
+      },
+      { 
+        libelle: '60 jours', 
+        description: 'Paiement à 60 jours', 
+        delaiPaiement: 60, 
+        tauxRemise: 0, 
+        actif: true 
+      }
+    ];
+
+    for (const typePaiement of typesPaiement) {
+      const existing = await prisma.typePaiement.findFirst({
+        where: { libelle: typePaiement.libelle }
+      });
+
+      if (!existing) {
+        await prisma.typePaiement.create({
+          data: typePaiement
+        });
+        console.log(`✅ Type de paiement "${typePaiement.libelle}" créé`);
+      }
     }
-  });
 
-  const specialitePlomberie = await prisma.specialite.upsert({
-    where: { libelle: 'Plomberie' },
-    update: {},
-    create: {
-      libelle: 'Plomberie',
-      description: 'Installation et réparation de plomberie'
-    }
-  });
+    console.log('🎉 Initialisation de la base de données terminée avec succès !');
 
-  const specialiteChauffage = await prisma.specialite.upsert({
-    where: { libelle: 'Chauffage' },
-    update: {},
-    create: {
-      libelle: 'Chauffage',
-      description: 'Installation et maintenance de systèmes de chauffage'
-    }
-  });
-
-  // Créer les techniciens
-  console.log('👷 Création des techniciens...');
-  const technicienUser1 = await prisma.utilisateur.upsert({
-    where: { email: 'jean.dupont@progitek.com' },
-    update: {},
-    create: {
-      nom: 'Dupont',
-      prenom: 'Jean',
-      email: 'jean.dupont@progitek.com',
-      motDePasse: hashedPassword,
-      phone: '+33123456791',
-      displayName: 'Jean Dupont',
-      status: 'active',
-      roleId: technicienRole.id
-    }
-  });
-
-  const technicien1 = await prisma.technicien.upsert({
-    where: { utilisateurId: technicienUser1.id },
-    update: {},
-    create: {
-      nom: 'Dupont',
-      prenom: 'Jean',
-      contact: '+33123456791',
-      specialiteId: specialiteElectricite.id,
-      utilisateurId: technicienUser1.id
-    }
-  });
-
-  const technicienUser2 = await prisma.utilisateur.upsert({
-    where: { email: 'marie.martin@progitek.com' },
-    update: {},
-    create: {
-      nom: 'Martin',
-      prenom: 'Marie',
-      email: 'marie.martin@progitek.com',
-      motDePasse: hashedPassword,
-      phone: '+33123456792',
-      displayName: 'Marie Martin',
-      status: 'active',
-      roleId: technicienRole.id
-    }
-  });
-
-  const technicien2 = await prisma.technicien.upsert({
-    where: { utilisateurId: technicienUser2.id },
-    update: {},
-    create: {
-      nom: 'Martin',
-      prenom: 'Marie',
-      contact: '+33123456792',
-      specialiteId: specialitePlomberie.id,
-      utilisateurId: technicienUser2.id
-    }
-  });
-
-  // Créer les types de paiement
-  console.log('💳 Création des types de paiement...');
-  const typePaiementComptant = await prisma.typePaiement.upsert({
-    where: { libelle: 'Comptant' },
-    update: {},
-    create: {
-      libelle: 'Comptant',
-      description: 'Paiement immédiat',
-      delaiPaiement: 0,
-      tauxRemise: 2.0,
-      actif: true
-    }
-  });
-
-  const typePaiement30j = await prisma.typePaiement.upsert({
-    where: { libelle: '30 jours' },
-    update: {},
-    create: {
-      libelle: '30 jours',
-      description: 'Paiement à 30 jours',
-      delaiPaiement: 30,
-      tauxRemise: 0.0,
-      actif: true
-    }
-  });
-
-  // Créer les clients
-  console.log('🏢 Création des clients...');
-  const client1 = await prisma.client.upsert({
-    where: { email: 'contact@entreprise-a.com' },
-    update: {},
-    create: {
-      nom: 'Entreprise A',
-      email: 'contact@entreprise-a.com',
-      telephone: '+33123456800',
-      entreprise: 'Entreprise A SARL',
-      typeDeCart: 'Professionnel',
-      localisation: 'Paris, France',
-      typePaiementId: typePaiement30j.id
-    }
-  });
-
-  const client2 = await prisma.client.upsert({
-    where: { email: 'info@societe-b.fr' },
-    update: {},
-    create: {
-      nom: 'Société B',
-      email: 'info@societe-b.fr',
-      telephone: '+33123456801',
-      entreprise: 'Société B SAS',
-      typeDeCart: 'Professionnel',
-      localisation: 'Lyon, France',
-      typePaiementId: typePaiementComptant.id
-    }
-  });
-
-  // Créer les matériels
-  console.log('📦 Création des matériels...');
-  const materiel1 = await prisma.materiel.upsert({
-    where: { reference: 'ELEC-001' },
-    update: {},
-    create: {
-      reference: 'ELEC-001',
-      designation: 'Disjoncteur 16A',
-      quantiteTotale: 50,
-      quantiteDisponible: 45,
-      seuilAlerte: 10,
-      categorie: 'Équipement',
-      prixUnitaire: 25.50,
-      description: 'Disjoncteur différentiel 16A'
-    }
-  });
-
-  const materiel2 = await prisma.materiel.upsert({
-    where: { reference: 'PLOMB-001' },
-    update: {},
-    create: {
-      reference: 'PLOMB-001',
-      designation: 'Tube PVC Ø32mm',
-      quantiteTotale: 100,
-      quantiteDisponible: 85,
-      seuilAlerte: 20,
-      categorie: 'Pièce',
-      prixUnitaire: 12.30,
-      description: 'Tube PVC diamètre 32mm, longueur 2m'
-    }
-  });
-
-  const materiel3 = await prisma.materiel.upsert({
-    where: { reference: 'OUTIL-001' },
-    update: {},
-    create: {
-      reference: 'OUTIL-001',
-      designation: 'Multimètre digital',
-      quantiteTotale: 10,
-      quantiteDisponible: 8,
-      seuilAlerte: 2,
-      categorie: 'Outillage',
-      prixUnitaire: 89.90,
-      description: 'Multimètre digital professionnel'
-    }
-  });
-
-  // Créer les missions
-  console.log('📋 Création des missions...');
-  const mission1 = await prisma.mission.upsert({
-    where: { numIntervention: 'INT-2025-001' },
-    update: {},
-    create: {
-      numIntervention: 'INT-2025-001',
-      natureIntervention: 'Installation électrique',
-      objectifDuContrat: 'Installation complète du tableau électrique',
-      description: 'Installation d\'un nouveau tableau électrique avec mise aux normes',
-      priorite: 'normale',
-      statut: 'planifiee',
-      dateSortieFicheIntervention: new Date(),
-      clientId: client1.id
-    }
-  });
-
-  const mission2 = await prisma.mission.upsert({
-    where: { numIntervention: 'INT-2025-002' },
-    update: {},
-    create: {
-      numIntervention: 'INT-2025-002',
-      natureIntervention: 'Réparation plomberie',
-      objectifDuContrat: 'Réparation fuite canalisation',
-      description: 'Réparation d\'une fuite sur la canalisation principale',
-      priorite: 'haute',
-      statut: 'planifiee',
-      dateSortieFicheIntervention: new Date(),
-      clientId: client2.id
-    }
-  });
-
-  console.log('✅ Seeding terminé avec succès !');
-  console.log('');
-  console.log('📊 Données créées :');
-  console.log(`- ${3} rôles`);
-  console.log(`- ${4} utilisateurs`);
-  console.log(`- ${2} techniciens`);
-  console.log(`- ${3} spécialités`);
-  console.log(`- ${2} types de paiement`);
-  console.log(`- ${2} clients`);
-  console.log(`- ${3} matériels`);
-  console.log(`- ${2} missions`);
-  console.log('');
-  console.log('🔑 Comptes de test :');
-  console.log('- Admin: admin@progitek.com / password123');
-  console.log('- Manager: manager@progitek.com / password123');
-  console.log('- Technicien 1: jean.dupont@progitek.com / password123');
-  console.log('- Technicien 2: marie.martin@progitek.com / password123');
+  } catch (error) {
+    console.error('❌ Erreur lors de l\'initialisation:', error);
+    throw error;
+  }
 }
 
 main()
   .catch((e) => {
-    console.error('❌ Erreur lors du seeding:', e);
+    console.error(e);
     process.exit(1);
   })
   .finally(async () => {

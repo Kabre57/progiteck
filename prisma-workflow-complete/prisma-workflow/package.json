@@ -1,0 +1,45 @@
+{
+  "name": "prisma-workflow",
+  "version": "1.0.0",
+  "description": "Workflow complet Prisma pour système de gestion d'interventions techniques",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "ts-node src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "jest",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:migrate:reset": "prisma migrate reset",
+    "db:seed": "ts-node prisma/seed.ts",
+    "db:studio": "prisma studio",
+    "db:format": "prisma format",
+    "db:validate": "prisma validate",
+    "db:deploy": "prisma migrate deploy && prisma generate",
+    "db:reset": "prisma migrate reset --force && npm run db:seed",
+    "db:setup": "prisma generate && prisma migrate dev && npm run db:seed"
+  },
+  "keywords": [
+    "prisma",
+    "postgresql",
+    "typescript",
+    "intervention",
+    "gestion"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@prisma/client": "^6.13.0",
+    "prisma": "^6.13.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.2.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.2"
+  },
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
+  }
+}

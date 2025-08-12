@@ -1,29 +1,17 @@
 import { prisma } from '@/config/database';
 
-export const generateMissionNumber = async (): Promise<string> => {
-  const year = new Date().getFullYear();
-  const prefix = `INT-${year}-`;
+
+export async function generateMissionNumber(): Promise<string> {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
   
-  // Trouver le dernier numéro pour cette année
-  const lastMission = await prisma.mission.findFirst({
-    where: {
-      numIntervention: {
-        startsWith: prefix
-      }
-    },
-    orderBy: {
-      numIntervention: 'desc'
-    }
-  });
-
-  let nextNumber = 1;
-  if (lastMission) {
-    const lastNumber = parseInt(lastMission.numIntervention.split('-')[2] || '0');
-    nextNumber = lastNumber + 1;
-  }
-
-  return `${prefix}${nextNumber.toString().padStart(4, '0')}`;
-};
+  // Générer une partie aléatoire pour garantir l'unicité
+  const randomPart = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+  
+  return `INT-${year}${month}${day}-${randomPart}`;
+}
 
 export const generateDevisNumber = async (): Promise<string> => {
   const year = new Date().getFullYear();

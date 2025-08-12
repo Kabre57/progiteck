@@ -11,7 +11,7 @@ import {
 import { authenticateToken } from '@/middleware/auth';
 import { validate } from '@/middleware/validation';
 
-const router = Router();
+const router: Router = Router();
 
 // Validation pour l'envoi de message
 const sendMessageValidation = [

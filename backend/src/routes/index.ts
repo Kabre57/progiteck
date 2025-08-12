@@ -16,7 +16,7 @@ import dashboardRoutes from './dashboard';
 import userRoutes from './users';
 import { apiLimiter } from '@/middleware/rateLimiter';
 
-const router = Router();
+const router: Router = Router();
 
 // Health check
 router.get("/health", (_req, res) => {

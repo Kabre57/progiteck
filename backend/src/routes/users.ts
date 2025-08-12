@@ -16,7 +16,7 @@ import {
 import { authenticateToken, requireRoles } from '@/middleware/auth';
 import { validate } from '@/middleware/validation';
 
-const router = Router();
+const router: Router = Router();
 
 // Validation pour la création d'utilisateur
 const createUserValidation = [

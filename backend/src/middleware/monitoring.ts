@@ -1,129 +1,224 @@
 import { Request, Response, NextFunction } from 'express';
 import { logger } from '@/config/logger';
+import os from 'os';
 
-interface PerformanceMetrics {
-  requestCount: number;
-  averageResponseTime: number;
-  errorCount: number;
-  slowRequestCount: number;
-}
-
-class MonitoringService {
-  private metrics: PerformanceMetrics = {
-    requestCount: 0,
-    averageResponseTime: 0,
-    errorCount: 0,
-    slowRequestCount: 0
+interface HealthMetrics {
+  status: string;
+  timestamp: string;
+  uptime: number;
+  version: string;
+  environment: string;
+  database: {
+    status: string;
+    connections: number;
   };
-
-  private responseTimes: number[] = [];
-  private readonly SLOW_REQUEST_THRESHOLD = 1000; // 1 second
-  private readonly MAX_RESPONSE_TIMES = 1000; // Keep last 1000 requests
-
-  recordRequest(responseTime: number, statusCode: number): void {
-    this.metrics.requestCount++;
-    
-    // Record response time
-    this.responseTimes.push(responseTime);
-    if (this.responseTimes.length > this.MAX_RESPONSE_TIMES) {
-      this.responseTimes.shift();
-    }
-    
-    // Calculate average
-    this.metrics.averageResponseTime = 
-      this.responseTimes.reduce((sum, time) => sum + time, 0) / this.responseTimes.length;
-    
-    // Count errors
-    if (statusCode >= 400) {
-      this.metrics.errorCount++;
-    }
-    
-    // Count slow requests
-    if (responseTime > this.SLOW_REQUEST_THRESHOLD) {
-      this.metrics.slowRequestCount++;
-      logger.warn(`Slow request detected: ${responseTime}ms`);
-    }
-  }
-
-  getMetrics(): PerformanceMetrics & { 
-    errorRate: number; 
-    slowRequestRate: number;
-    uptime: number;
-  } {
-    return {
-      ...this.metrics,
-      errorRate: this.metrics.requestCount > 0 
-        ? (this.metrics.errorCount / this.metrics.requestCount) * 100 
-        : 0,
-      slowRequestRate: this.metrics.requestCount > 0 
-        ? (this.metrics.slowRequestCount / this.metrics.requestCount) * 100 
-        : 0,
-      uptime: process.uptime()
-    };
-  }
-
-  reset(): void {
-    this.metrics = {
-      requestCount: 0,
-      averageResponseTime: 0,
-      errorCount: 0,
-      slowRequestCount: 0
-    };
-    this.responseTimes = [];
-  }
+  memory: {
+    used: number;
+    total: number;
+    percentage: number;
+  };
+  cpu: {
+    usage: number;
+    loadAverage: number[];
+  };
+  requests: {
+    total: number;
+    averageResponseTime: number;
+    errorRate: number;
+  };
+  metrics?: {
+    totalRequests: number;
+    averageResponseTime: string;
+    errorRate: string;
+    uptime: string;
+    memoryUsage: string;
+    cpuUsage: string;
+  };
 }
 
-export const monitoringService = new MonitoringService();
+// Métriques globales
+let totalRequests = 0;
+let totalResponseTime = 0;
+let totalErrors = 0;
+const startTime = Date.now();
 
+// Middleware de monitoring des performances
 export const performanceMonitoring = (req: Request, res: Response, next: NextFunction): void => {
   const startTime = Date.now();
   
+  // Incrémenter le compteur de requêtes
+  totalRequests++;
+  
+  // Logger la requête entrante
+  logger.info('Request started', {
+    method: req.method,
+    url: req.originalUrl,
+    ip: req.ip,
+    userAgent: req.get('User-Agent'),
+    service: 'progitek-api'
+  });
+
+  // Intercepter la fin de la réponse
   res.on('finish', () => {
-    const responseTime = Date.now() - startTime;
-    monitoringService.recordRequest(responseTime, res.statusCode);
+    const duration = Date.now() - startTime;
+    totalResponseTime += duration;
     
-    // Log request details
+    // Compter les erreurs
+    if (res.statusCode >= 400) {
+      totalErrors++;
+    }
+    
+    // Logger la réponse
     logger.info('Request completed', {
       method: req.method,
       url: req.originalUrl,
       statusCode: res.statusCode,
-      responseTime: `${responseTime}ms`,
+      responseTime: `${duration}ms`,
+      ip: req.ip,
       userAgent: req.get('User-Agent'),
-      ip: req.ip
+      service: 'progitek-api'
     });
   });
-  
+
   next();
 };
 
-// Health check endpoint data
-export const getHealthStatus = () => {
-  const metrics = monitoringService.getMetrics();
-  const memoryUsage = process.memoryUsage();
+// Middleware de monitoring des erreurs
+export const errorMonitoring = (error: Error, req: Request, res: Response, next: NextFunction): void => {
+  totalErrors++;
+  
+  logger.error('Application error', {
+    error: error.message,
+    stack: error.stack,
+    method: req.method,
+    url: req.originalUrl,
+    ip: req.ip,
+    userAgent: req.get('User-Agent'),
+    service: 'progitek-api'
+  });
+  
+  next(error);
+};
+
+// Fonction pour obtenir les métriques système
+const getSystemMetrics = () => {
+  const memUsage = process.memoryUsage();
+  const totalMem = os.totalmem();
+  const freeMem = os.freemem();
+  const usedMem = totalMem - freeMem;
+  
+  return {
+    memory: {
+      used: Math.round(usedMem / 1024 / 1024), // MB
+      total: Math.round(totalMem / 1024 / 1024), // MB
+      percentage: Math.round((usedMem / totalMem) * 100)
+    },
+    cpu: {
+      usage: Math.round(os.loadavg()[0] * 100) / 100,
+      loadAverage: os.loadavg()
+    },
+    process: {
+      heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024), // MB
+      heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024), // MB
+      external: Math.round(memUsage.external / 1024 / 1024), // MB
+      rss: Math.round(memUsage.rss / 1024 / 1024) // MB
+    }
+  };
+};
+
+// Fonction pour obtenir le statut de santé complet
+export const getHealthStatus = (): HealthMetrics => {
+  const uptime = Math.floor((Date.now() - startTime) / 1000);
+  const averageResponseTime = totalRequests > 0 ? totalResponseTime / totalRequests : 0;
+  const errorRate = totalRequests > 0 ? (totalErrors / totalRequests) * 100 : 0;
+  const systemMetrics = getSystemMetrics();
   
   return {
     status: 'healthy',
     timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    version: process.env.npm_package_version || '1.0.0',
+    uptime,
+    version: process.env.APP_VERSION || '1.0.0',
     environment: process.env.NODE_ENV || 'development',
+    database: {
+      status: 'connected', // À améliorer avec une vraie vérification
+      connections: 0 // À implémenter avec Prisma metrics
+    },
+    memory: systemMetrics.memory,
+    cpu: systemMetrics.cpu,
+    requests: {
+      total: totalRequests,
+      averageResponseTime: Math.round(averageResponseTime),
+      errorRate: Math.round(errorRate * 100) / 100
+    },
     metrics: {
-      requests: {
-        total: metrics.requestCount,
-        averageResponseTime: Math.round(metrics.averageResponseTime),
-        errorRate: Math.round(metrics.errorRate * 100) / 100,
-        slowRequestRate: Math.round(metrics.slowRequestRate * 100) / 100
-      },
-      memory: {
-        used: Math.round(memoryUsage.heapUsed / 1024 / 1024),
-        total: Math.round(memoryUsage.heapTotal / 1024 / 1024),
-        external: Math.round(memoryUsage.external / 1024 / 1024)
-      },
-      system: {
-        nodeVersion: process.version,
-        platform: process.platform,
-        arch: process.arch
-      }
+      totalRequests: totalRequests,
+      averageResponseTime: `${Math.round(averageResponseTime)}ms`,
+      errorRate: `${Math.round(errorRate * 100) / 100}%`,
+      uptime: `${uptime}s`,
+      memoryUsage: `${systemMetrics.memory.used}MB / ${systemMetrics.memory.total}MB (${systemMetrics.memory.percentage}%)`,
+      cpuUsage: `${systemMetrics.cpu.usage}%`
     }
   };
 };
+
+// Middleware de surveillance de la santé
+export const healthCheck = (req: Request, res: Response): void => {
+  const healthStatus = getHealthStatus();
+  
+  // Déterminer le statut basé sur les métriques
+  let status = 'healthy';
+  if (healthStatus.memory.percentage > 90) status = 'warning';
+  if (healthStatus.cpu.usage > 80) status = 'warning';
+  if (healthStatus.requests.errorRate > 10) status = 'critical';
+  
+  healthStatus.status = status;
+  
+  const httpStatus = status === 'healthy' ? 200 : status === 'warning' ? 200 : 503;
+  res.status(httpStatus).json(healthStatus);
+};
+
+// Fonction pour logger les métriques périodiquement
+export const logMetricsPeriodically = (): void => {
+  setInterval(() => {
+    const metrics = getHealthStatus();
+    logger.info('System metrics', {
+      service: 'progitek-api',
+      metrics: {
+        totalRequests: metrics.requests.total,
+        averageResponseTime: metrics.requests.averageResponseTime,
+        errorRate: metrics.requests.errorRate,
+        memoryUsage: metrics.memory.percentage,
+        cpuUsage: metrics.cpu.usage,
+        uptime: metrics.uptime
+      }
+    });
+  }, 60000); // Toutes les minutes
+};
+
+// Middleware de sécurité pour les headers
+export const securityHeaders = (req: Request, res: Response, next: NextFunction): void => {
+  // Headers de sécurité
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+  
+  // CSP pour la production
+  if (process.env.NODE_ENV === 'production') {
+    res.setHeader('Content-Security-Policy', 
+      "default-src 'self'; " +
+      "script-src 'self' 'unsafe-inline'; " +
+      "style-src 'self' 'unsafe-inline'; " +
+      "img-src 'self' data: https:; " +
+      "connect-src 'self'; " +
+      "font-src 'self'; " +
+      "object-src 'none'; " +
+      "media-src 'self'; " +
+      "frame-src 'none';"
+    );
+  }
+  
+  next();
+};
+

@@ -5,7 +5,7 @@ import { authenticateToken } from '@/middleware/auth';
 import { validate } from '@/middleware/validation';
 import { authLimiter } from '@/middleware/rateLimiter';
 
-const router = Router();
+const router: Router = Router();
 
 // Validation pour la connexion
 const loginValidation = [

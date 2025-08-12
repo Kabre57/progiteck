@@ -130,7 +130,7 @@ export const getMissionById = async (
     sendError(res, 'Erreur lors de la récupération de la mission');
   }
 };
-
+// Dans missionController.ts
 export const createMission = async (
   req: AuthenticatedRequest,
   res: Response
@@ -158,8 +158,30 @@ export const createMission = async (
       return;
     }
 
-    // Générer le numéro d'intervention
-    const numIntervention = await generateMissionNumber();
+    // Générer un numéro d'intervention unique
+    let numIntervention: string;
+    let isUnique = false;
+    let attempts = 0;
+    const maxAttempts = 5;
+
+    while (!isUnique && attempts < maxAttempts) {
+      attempts++;
+      numIntervention = await generateMissionNumber();
+      
+      // Vérifier si le numéro existe déjà
+      const existingMission = await prisma.mission.findUnique({
+        where: { numIntervention }
+      });
+
+      if (!existingMission) {
+        isUnique = true;
+      }
+    }
+
+    if (!isUnique) {
+      sendError(res, 'Impossible de générer un numéro d\'intervention unique', 500);
+      return;
+    }
 
     // Déterminer le statut initial de la mission
     const now = new Date();

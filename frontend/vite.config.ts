@@ -14,6 +14,8 @@ export default defineConfig({
     },
   },
   server: {
+    host: true,
+    allowedHosts: ['5173-ixm48sljnwnt6qlg8ufwf-d3e1c6a3.manusvm.computer'],
     hmr: {
       overlay: false
     }

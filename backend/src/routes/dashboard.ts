@@ -9,7 +9,7 @@ import {
 import { authenticateToken } from '@/middleware/auth';
 import { logger } from '@/config/logger';
 
-const router = Router();
+const router: Router = Router();
 
 // Route globale pour toutes les données du dashboard
 router.get('/', authenticateToken, async (req, res) => {
@@ -17,7 +17,7 @@ router.get('/', authenticateToken, async (req, res) => {
     logger.info('Fetching complete dashboard data');
     
     // Créer un objet pour stocker toutes les données
-    const dashboardData = {
+    const dashboardData: Record<string, any> = {
       stats: null,
       charts: null,
       recentActivity: null,
@@ -61,7 +61,7 @@ router.get('/', authenticateToken, async (req, res) => {
     res.status(500).json({ 
       success: false, 
       message: 'Internal server error',
-      error: error.message 
+      error: (error as Error).message 
     });
   }
 });
