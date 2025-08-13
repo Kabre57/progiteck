@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'; // Ajout de useCallback
-import { Plus, Play, Pause, Clock, Users, Calendar, RefreshCw, Edit, Eye, Printer } from 'lucide-react';
+import { Plus, Play, Pause, Clock, Calendar, RefreshCw, Edit, Eye, Printer } from 'lucide-react';
 import InterventionForm from '@/components/forms/InterventionForm';
 import AvailabilityChecker from '@/components/Dashboard/AvailabilityChecker';
 import Modal from '@/components/ui/Modal';
@@ -405,7 +405,7 @@ export default function InterventionsPage() {
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         title="Nouvelle Intervention"
-        size="lg"
+        size="xl"
       >
         <div className="space-y-6">
           <InterventionForm
@@ -433,7 +433,7 @@ export default function InterventionsPage() {
           setSelectedIntervention(null);
         }}
         title="Modifier Intervention"
-        size="lg"
+        size="xl"
       >
         {selectedIntervention && (
           <InterventionForm

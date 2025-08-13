@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Search, Filter } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { PAGINATION_CONFIG } from '@/config/constants';
 
 interface Column<T> {
@@ -25,7 +25,7 @@ interface DataTableProps<T> {
   className?: string;
 }
 
-export default function DataTable<T extends { id: number }>({
+export default function DataTable<T>({
   columns,
   fetchData,
   pageSize = PAGINATION_CONFIG.DEFAULT_PAGE_SIZE,
@@ -48,7 +48,7 @@ export default function DataTable<T extends { id: number }>({
       const response = await fetchData({ 
         page, 
         limit: pageSize, 
-        search: searchTerm || undefined 
+        ...(searchTerm ? { search: searchTerm } : {})
       });
       setData(response.data);
       setPagination(response.pagination);
@@ -134,10 +134,10 @@ export default function DataTable<T extends { id: number }>({
               </tr>
             ) : (
               data.map((record) => (
-                <tr key={`row-${record.id || Math.random()}`} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                <tr key={`row-${(record as any).id ?? Math.random()}`} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                   {columns.map((column) => (
                     <td
-                      key={`cell-${record.id || Math.random()}-${String(column.key)}`}
+                      key={`cell-${(record as any).id ?? Math.random()}-${String(column.key)}`}
                       className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white"
                     >
                       {column.render

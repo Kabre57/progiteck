@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Plus, Trash2, Image as ImageIcon } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 import Input from '@/components/ui/Input';
 import Textarea from '@/components/ui/Textarea';
@@ -9,7 +9,8 @@ import { toast } from 'react-hot-toast';
 import { missionService } from '@/services/missionService';
 import { technicienService } from '@/services/technicienService';
 import { interventionService } from '@/services/interventionService';
-import { CreateRapportRequest, Mission, Technicien, Intervention, RapportImage } from '@/types';
+import type { Mission, Technicien, Intervention, RapportImage } from '@/types';
+import type { CreateRapportRequest } from '@/types';
 
 interface RapportFormProps {
   isOpen: boolean;
@@ -20,12 +21,12 @@ interface RapportFormProps {
 
 export default function RapportForm({ isOpen, onClose, onSubmit, initialData }: RapportFormProps) {
   const [formData, setFormData] = useState<CreateRapportRequest>({
-    titre: '',
-    contenu: '',
-    interventionId: undefined,
-    technicienId: 0,
-    missionId: '',
-    images: [],
+  titre: '',
+  contenu: '',
+  interventionId: undefined,
+  technicienId: 0,
+  missionId: '',
+  images: [],
   });
   const [missions, setMissions] = useState<Mission[]>([]);
   const [techniciens, setTechniciens] = useState<Technicien[]>([]);
@@ -40,13 +41,13 @@ export default function RapportForm({ isOpen, onClose, onSubmit, initialData }: 
         setFormData({
           titre: initialData.titre || '',
           contenu: initialData.contenu || '',
-          interventionId: initialData.interventionId,
+          interventionId: typeof initialData.interventionId === 'number' ? initialData.interventionId : undefined,
           technicienId: initialData.technicienId || 0,
           missionId: initialData.missionId || '',
           images: initialData.images || [],
         });
         if (initialData.missionId) {
-          loadInterventionsByMission(initialData.missionId);
+          loadInterventionsByMission(String(initialData.missionId));
         }
       } else {
         setFormData({
@@ -83,7 +84,7 @@ export default function RapportForm({ isOpen, onClose, onSubmit, initialData }: 
 
   const loadInterventionsByMission = async (missionId: string) => {
     try {
-      const response = await interventionService.getInterventions({ page: 1, limit: 100, missionId });
+    const response = await interventionService.getInterventions({ page: 1, limit: 100, missionId: Number(missionId) });
       setInterventions(response.data || []);
     } catch (error) {
       console.error('Failed to load interventions:', error);
@@ -93,36 +94,43 @@ export default function RapportForm({ isOpen, onClose, onSubmit, initialData }: 
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev: CreateRapportRequest) => ({
       ...prev,
-      [name]: value,
+      [name]: name === 'technicienId' || name === 'interventionId' ? (value ? Number(value) : undefined) : value,
     }));
 
     if (name === 'missionId' && value) {
       loadInterventionsByMission(value);
     } else if (name === 'missionId' && !value) {
-      setInterventions([]);
-      setFormData(prev => ({ ...prev, interventionId: undefined }));
+  setInterventions([]);
+  setFormData((prev: CreateRapportRequest) => ({ ...prev, interventionId: undefined }));
     }
   };
 
   const handleImageChange = (index: number, field: keyof RapportImage, value: string) => {
     const newImages = [...formData.images!];
-    newImages[index] = { ...newImages[index], [field]: value };
-    setFormData(prev => ({ ...prev, images: newImages }));
+    const current: RapportImage | undefined = newImages[index];
+    newImages[index] = {
+      id: current && typeof current.id === 'number' ? current.id : 0,
+      rapportId: current && typeof current.rapportId === 'number' ? current.rapportId : 0,
+      url: field === 'url' ? value : current && typeof current.url === 'string' ? current.url : '',
+      description: field === 'description' ? value : current && typeof current.description === 'string' ? current.description : '',
+      ordre: current && typeof current.ordre === 'number' ? current.ordre : index + 1,
+    };
+    setFormData((prev: CreateRapportRequest) => ({ ...prev, images: newImages as RapportImage[] }));
   };
 
   const handleAddImage = () => {
-    setFormData(prev => ({
+    setFormData((prev: CreateRapportRequest) => ({
       ...prev,
-      images: [...prev.images!, { url: '', description: '', ordre: prev.images!.length + 1 }],
+      images: [...prev.images!, { url: '', description: '', ordre: prev.images!.length + 1 } as RapportImage],
     }));
   };
 
   const handleRemoveImage = (index: number) => {
-    setFormData(prev => ({
+    setFormData((prev: CreateRapportRequest) => ({
       ...prev,
-      images: prev.images!.filter((_, i) => i !== index),
+      images: prev.images!.filter((_, i: number) => i !== index) as RapportImage[],
     }));
   };
 
@@ -143,7 +151,7 @@ export default function RapportForm({ isOpen, onClose, onSubmit, initialData }: 
         ...formData,
         technicienId: Number(formData.technicienId),
         interventionId: formData.interventionId ? Number(formData.interventionId) : undefined,
-        images: formData.images?.filter(img => img.url !== '').map((img, index) => ({ ...img, ordre: index + 1 })) || [],
+        images: formData.images?.filter((img: RapportImage) => img.url !== '').map((img: RapportImage, index: number) => ({ ...img, ordre: index + 1 })) as RapportImage[] || [],
       };
 
       await onSubmit(dataToSubmit);
@@ -152,6 +160,11 @@ export default function RapportForm({ isOpen, onClose, onSubmit, initialData }: 
     } catch (error: any) {
       console.error('Error submitting rapport:', error);
       toast.error(`Erreur lors de la sauvegarde du rapport: ${error.message || 'Une erreur est survenue'}`);
+      if (error?.response?.data?.errors) {
+        error.response.data.errors.forEach((err: any) => {
+          toast.error(`${err.field}: ${err.message}`);
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -220,21 +233,21 @@ export default function RapportForm({ isOpen, onClose, onSubmit, initialData }: 
 
         <div className="space-y-2">
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Images du Rapport</label>
-          {formData.images?.map((image, index) => (
+          {formData.images?.map((image: RapportImage, index: number) => (
             <div key={index} className="flex items-end space-x-2">
               <div className="flex-grow">
                 <Input
                   label={`URL Image ${index + 1}`}
                   name="url"
                   value={image.url}
-                  onChange={(e) => handleImageChange(index, 'url', e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleImageChange(index, 'url', e.target.value)}
                   placeholder="https://example.com/image.jpg"
                 />
                 <Input
                   label="Description (optionnel)"
                   name="description"
                   value={image.description}
-                  onChange={(e) => handleImageChange(index, 'description', e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleImageChange(index, 'description', e.target.value)}
                   placeholder="Description de l'image"
                 />
               </div>

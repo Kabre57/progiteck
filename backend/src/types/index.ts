@@ -1,3 +1,14 @@
+// Extension du type Express Request pour inclure user
+declare module 'express' {
+  export interface Request {
+    user?: {
+      id: number;
+      email?: string;
+      role?: string;
+      // Ajoutez d'autres propriétés si besoin
+    };
+  }
+}
 // Types pour les réponses API
 export interface ApiResponse<T = any> {
   success: boolean;

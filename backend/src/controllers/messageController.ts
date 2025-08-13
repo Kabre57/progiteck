@@ -3,7 +3,7 @@ import { prisma } from '@/config/database';
 import { AuthenticatedRequest } from '@/middleware/auth';
 import { sendSuccess, sendSuccessWithPagination, sendError } from '@/utils/response';
 import { getPagination, createPaginationMeta } from '@/utils/pagination';
-import { CreateMessageRequest } from '@/types';
+
 import { logger } from '@/config/logger';
 
 export const getMessages = async (
@@ -165,7 +165,7 @@ export const getUnreadCount = async (
     const unreadCount = await prisma.message.count({
       where: {
         receiverId: userId,
-        lu: false
+        readAt: null
       }
     });
 
@@ -181,7 +181,7 @@ export const sendMessage = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { contenu, receiverId }: CreateMessageRequest = req.body;
+    const { contenu, receiverId }: { contenu: string; receiverId: number } = req.body;
     const senderId = req.user!.id;
 
     // Vérifier que le destinataire existe
@@ -233,6 +233,7 @@ export const markAsRead = async (
 ): Promise<void> => {
   try {
     const { id } = req.params;
+    if (!id) return sendError(res, 'ID du message manquant');
     const messageId = parseInt(id);
     const userId = req.user!.id;
 
@@ -254,8 +255,7 @@ export const markAsRead = async (
     const updatedMessage = await prisma.message.update({
       where: { id: messageId },
       data: {
-        lu: true,
-        dateLecture: new Date()
+        readAt: new Date()
       },
       include: {
         sender: {
@@ -290,6 +290,7 @@ export const deleteMessage = async (
 ): Promise<void> => {
   try {
     const { id } = req.params;
+    if (!id) return sendError(res, 'ID du message manquant');
     const messageId = parseInt(id);
     const userId = req.user!.id;
 

@@ -5,6 +5,7 @@ import StatCard from '@/components/ui/StatCard';
 import DataTable from '@/components/ui/DataTable';
 import Modal from '@/components/ui/Modal';
 import { messageService } from '@/services/messageService';
+import SendMessageForm from '@/components/forms/SendMessageForm';
 import { useAuth } from '@/hooks/useAuth';
 import { Message } from '@/types';
 import { format } from 'date-fns';
@@ -69,77 +70,89 @@ export default function MessagesPage() {
     {
       key: 'sender' as keyof Message,
       title: 'Expéditeur',
-      render: (sender: Message['sender'], record: Message) => (
-        <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-            <span className="text-sm font-medium text-white">
-              {sender.prenom?.charAt(0)}{sender.nom?.charAt(0)}
-            </span>
+      render: (value: unknown, record: Message) => {
+        const sender = value as Message['sender'] | undefined;
+        return (
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+              <span className="text-sm font-medium text-white">
+                {sender?.prenom?.charAt(0) ?? ''}{sender?.nom?.charAt(0) ?? ''}
+              </span>
+            </div>
+            <div>
+              <p className="font-medium text-gray-900 dark:text-white">
+                {sender?.prenom ?? ''} {sender?.nom ?? ''}
+              </p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {record.senderId === user?.id ? 'Vous' : sender?.email ?? ''}
+              </p>
+            </div>
           </div>
-          <div>
-            <p className="font-medium text-gray-900 dark:text-white">
-              {sender.prenom} {sender.nom}
-            </p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              {record.senderId === user?.id ? 'Vous' : sender.email}
-            </p>
-          </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       key: 'receiver' as keyof Message,
       title: 'Destinataire',
-      render: (receiver: Message['receiver'], record: Message) => (
-        <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
-            <span className="text-sm font-medium text-white">
-              {receiver.prenom?.charAt(0)}{receiver.nom?.charAt(0)}
-            </span>
+      render: (value: unknown, record: Message) => {
+        const receiver = value as Message['receiver'] | undefined;
+        return (
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
+              <span className="text-sm font-medium text-white">
+                {receiver?.prenom?.charAt(0) ?? ''}{receiver?.nom?.charAt(0) ?? ''}
+              </span>
+            </div>
+            <div>
+              <p className="font-medium text-gray-900 dark:text-white">
+                {receiver?.prenom ?? ''} {receiver?.nom ?? ''}
+              </p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {record.receiverId === user?.id ? 'Vous' : receiver?.email ?? ''}
+              </p>
+            </div>
           </div>
-          <div>
-            <p className="font-medium text-gray-900 dark:text-white">
-              {receiver.prenom} {receiver.nom}
-            </p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              {record.receiverId === user?.id ? 'Vous' : receiver.email}
-            </p>
-          </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       key: 'contenu' as keyof Message,
       title: 'Message',
-      render: (contenu: string, record: Message) => (
-        <div>
-          <p className={`text-sm ${!record.readAt && record.receiverId === user?.id ? 'font-semibold text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-400'}`}>
-            {contenu.length > 100 ? `${contenu.substring(0, 100)}...` : contenu}
-          </p>
-          {!record.readAt && record.receiverId === user?.id && (
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 mt-1">
-              Non lu
-            </span>
-          )}
-        </div>
-      ),
+      render: (value: unknown, record: Message) => {
+        const contenu = value as string;
+        return (
+          <div>
+            <p className={`text-sm ${!record.readAt && record.receiverId === user?.id ? 'font-semibold text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-400'}`}>
+              {contenu.length > 100 ? `${contenu.substring(0, 100)}...` : contenu}
+            </p>
+            {!record.readAt && record.receiverId === user?.id && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 mt-1">
+                Non lu
+              </span>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: 'createdAt' as keyof Message,
       title: 'Date',
-      render: (date: string) => (
-        <div className="flex items-center space-x-2">
-          <Clock className="h-4 w-4 text-gray-400" />
-          <span className="text-sm text-gray-900 dark:text-white">
-            {format(new Date(date), 'dd/MM/yyyy HH:mm', { locale: fr })}
-          </span>
-        </div>
-      ),
+      render: (value: unknown) => {
+        const date = value as string;
+        return (
+          <div className="flex items-center space-x-2">
+            <Clock className="h-4 w-4 text-gray-400" />
+            <span className="text-sm text-gray-900 dark:text-white">
+              {format(new Date(date), 'dd/MM/yyyy HH:mm', { locale: fr })}
+            </span>
+          </div>
+        );
+      },
     },
     {
       key: 'actions' as keyof Message,
       title: 'Actions',
-      render: (value: any, record: Message) => (
+      render: (_: unknown, record: Message) => (
         <div className="flex items-center space-x-2">
           {!record.readAt && record.receiverId === user?.id && (
             <button
@@ -154,6 +167,13 @@ export default function MessagesPage() {
       ),
     },
   ];
+
+  // ...existing code...
+  // Fonction appelée après envoi de message pour rafraîchir la liste et fermer la modale
+  const handleMessageSent = () => {
+    setShowCreateModal(false);
+    setRefreshTrigger(prev => prev + 1);
+  };
 
   return (
     <Layout>
@@ -217,16 +237,12 @@ export default function MessagesPage() {
           title="Nouveau Message"
           size="lg"
         >
-          <div className="p-4 text-center">
-            <p className="text-gray-600 dark:text-gray-400">
-              Formulaire d'envoi de message à implémenter
-            </p>
-            <button
-              onClick={() => setShowCreateModal(false)}
-              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-            >
-              Fermer
-            </button>
+          <div className="p-4">
+            {/* Intégration du formulaire d'envoi de message */}
+            {/* À adapter si tu veux choisir le destinataire dynamiquement */}
+            {user && (
+              <SendMessageForm receiverId={user.id === 1 ? 2 : 1} onSent={handleMessageSent} />
+            )}
           </div>
         </Modal>
       </div>

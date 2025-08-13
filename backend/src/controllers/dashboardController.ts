@@ -131,41 +131,32 @@ export const getCharts = async (
       ORDER BY mois ASC
     `;
 
-    // Missions par statut
+    // Missions par statut (GROUP BY)
     const missionsParStatut = await prisma.$queryRaw<Array<{
       statut: string;
       total: bigint;
     }>>`
-      SELECT
-        CASE
-          WHEN EXISTS (
-            SELECT 1 FROM interventions i
-            WHERE i."missionId" = m."numIntervention"
-            AND i."dateHeureFin" IS NULL
-          ) THEN 'En cours'
-          WHEN EXISTS (
-            SELECT 1 FROM interventions i
-            WHERE i."missionId" = m."numIntervention"
-            AND i."dateHeureFin" IS NOT NULL
-          ) THEN 'Terminée'
-          ELSE 'Planifiée'
-        END as statut,
-        COUNT(m."numIntervention") as total
-      FROM missions m
-      GROUP BY
-        CASE
-          WHEN EXISTS (
-            SELECT 1 FROM interventions i
-            WHERE i."missionId" = m."numIntervention"
-            AND i."dateHeureFin" IS NULL
-          ) THEN 'En cours'
-          WHEN EXISTS (
-            SELECT 1 FROM interventions i
-            WHERE i."missionId" = m."numIntervention"
-            AND i."dateHeureFin" IS NOT NULL
-          ) THEN 'Terminée'
-          ELSE 'Planifiée'
-        END
+      SELECT statut, COUNT(*) as total
+      FROM (
+        SELECT
+          m."numIntervention",
+          CASE
+            WHEN EXISTS (
+              SELECT 1 FROM interventions i
+              WHERE i."missionId" = m."numIntervention"
+              AND i."dateHeureFin" IS NULL
+            ) THEN 'En cours'
+            WHEN EXISTS (
+              SELECT 1 FROM interventions i
+              WHERE i."missionId" = m."numIntervention"
+              AND i."dateHeureFin" IS NOT NULL
+            ) THEN 'Terminée'
+            ELSE 'Planifiée'
+          END as statut
+        FROM missions m
+      ) sub
+      GROUP BY statut
+      ORDER BY statut ASC
     `;
 
     // Top techniciens

@@ -1,6 +1,7 @@
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
-import { Express } from 'express';
+import { Application, Request, Response } from 'express';
+
 
 const options = {
   definition: {
@@ -122,7 +123,7 @@ const options = {
 
 const specs = swaggerJsdoc(options);
 
-export const setupSwagger = (app: Express): void => {
+export const setupSwagger = (app: Application): void => {
   app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, {
     explorer: true,
     customCss: '.swagger-ui .topbar { display: none }',
@@ -130,7 +131,7 @@ export const setupSwagger = (app: Express): void => {
   }));
   
   // JSON endpoint for API specs
-  app.get('/api-docs.json', (req, res) => {
+  app.get('/api-docs.json', (req: Request, res: Response) => {
     res.setHeader('Content-Type', 'application/json');
     res.send(specs);
   });

@@ -13,7 +13,7 @@ export interface PrintOptions {
 
 export class PrintService {
   private static getCompanyLogo(): string {
-    return '/images/Capture.PNG';
+    return '/images/logo.jpeg';
   }
 
   private static getCompanyInfo(): string {
@@ -239,11 +239,11 @@ export class PrintService {
         <div class="info-grid">
           <div class="info-box">
             <h3>Informations Client</h3>
-            <p><strong>Nom:</strong> ${devis.client.nom}</p>
-            <p><strong>Entreprise:</strong> ${devis.client.entreprise || 'Particulier'}</p>
-            <p><strong>Email:</strong> ${devis.client.email}</p>
-            <p><strong>Téléphone:</strong> ${devis.client.telephone || '-'}</p>
-            <p><strong>Adresse:</strong> ${devis.client.localisation || '-'}</p>
+            <p><strong>Nom:</strong> ${devis.client?.nom ?? '-'}</p>
+            <p><strong>Entreprise:</strong> ${devis.client?.entreprise ?? 'Particulier'}</p>
+            <p><strong>Email:</strong> ${devis.client?.email ?? '-'}</p>
+            <p><strong>Téléphone:</strong> ${devis.client?.telephone ?? '-'}</p>
+            <p><strong>Adresse:</strong> ${devis.client?.localisation ?? '-'}</p>
           </div>
           
           <div class="info-box">
@@ -349,11 +349,11 @@ export class PrintService {
         <div class="info-grid">
           <div class="info-box">
             <h3>Informations Client</h3>
-            <p><strong>Nom:</strong> ${facture.client.nom}</p>
-            <p><strong>Entreprise:</strong> ${facture.client.entreprise || 'Particulier'}</p>
-            <p><strong>Email:</strong> ${facture.client.email}</p>
-            <p><strong>Téléphone:</strong> ${facture.client.telephone || '-'}</p>
-            <p><strong>Adresse:</strong> ${facture.client.localisation || '-'}</p>
+            <p><strong>Nom:</strong> ${facture.client?.nom ?? '-'}</p>
+            <p><strong>Entreprise:</strong> ${facture.client?.entreprise ?? 'Particulier'}</p>
+            <p><strong>Email:</strong> ${facture.client?.email ?? '-'}</p>
+            <p><strong>Téléphone:</strong> ${facture.client?.telephone ?? '-'}</p>
+            <p><strong>Adresse:</strong> ${facture.client?.localisation ?? '-'}</p>
           </div>
           
           <div class="info-box">
@@ -429,7 +429,7 @@ export class PrintService {
       <html>
       <head>
         <meta charset="UTF-8">
-        <title>Fiche Intervention ${intervention.mission.numIntervention}</title>
+  <title>Fiche Intervention ${intervention.mission?.numIntervention ?? '-'}</title>
         ${this.getCommonStyles()}
         <style>
           .intervention-header {
@@ -483,13 +483,13 @@ export class PrintService {
           <table class="table">
             <tr>
               <td style="width: 25%"><strong>Réf. Fiche:</strong></td>
-              <td style="width: 25%">${intervention.mission.numIntervention}</td>
+              <td style="width: 25%">${intervention.mission?.numIntervention ?? '-'}</td>
               <td style="width: 25%"><strong>Date:</strong></td>
-              <td style="width: 25%">${new Date(intervention.dateHeureDebut).toLocaleDateString('fr-FR')}</td>
+              <td style="width: 25%">${intervention.dateHeureDebut ? new Date(intervention.dateHeureDebut).toLocaleDateString('fr-FR') : '-'}</td>
             </tr>
             <tr>
               <td><strong>Heure de départ:</strong></td>
-              <td>${new Date(intervention.dateHeureDebut).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</td>
+              <td>${intervention.dateHeureDebut ? new Date(intervention.dateHeureDebut).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
               <td><strong>Heure de retour:</strong></td>
               <td>${intervention.dateHeureFin ? new Date(intervention.dateHeureFin).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '___:___'}</td>
             </tr>
@@ -507,11 +507,11 @@ export class PrintService {
               </tr>
             </thead>
             <tbody>
-              ${intervention.techniciens.map(tech => `
+              ${(intervention.techniciens ?? []).map(tech => `
                 <tr>
-                  <td>${tech.technicien.prenom} ${tech.technicien.nom}</td>
-                  <td>${tech.technicien.specialite.libelle}</td>
-                  <td>${tech.technicien.contact}</td>
+                  <td>${tech.technicien?.prenom ?? '-'} ${tech.technicien?.nom ?? '-'}</td>
+                  <td>${tech.technicien?.specialite?.libelle ?? '-'}</td>
+                  <td>${tech.technicien?.contact ?? '-'}</td>
                 </tr>
               `).join('')}
             </tbody>
@@ -527,9 +527,9 @@ export class PrintService {
               <td style="width: 34%"><strong>Contact sur site:</strong></td>
             </tr>
             <tr>
-              <td>${intervention.mission.client.nom}<br>${intervention.mission.client.entreprise || ''}</td>
-              <td>${intervention.mission.client.localisation || '___________________'}</td>
-              <td>${intervention.mission.client.telephone || '___________________'}</td>
+              <td>${intervention.mission?.client?.nom ?? '-'}<br>${intervention.mission?.client?.entreprise ?? ''}</td>
+              <td>${intervention.mission?.client?.localisation ?? '___________________'}</td>
+              <td>${intervention.mission?.client?.telephone ?? '___________________'}</td>
             </tr>
           </table>
         </div>
@@ -557,8 +557,8 @@ export class PrintService {
           </div>
           
           <p><strong>Équipements concernés:</strong></p>
-          <p>${intervention.mission.natureIntervention}</p>
-          <p>${intervention.mission.description || ''}</p>
+          <p>${intervention.mission?.natureIntervention ?? '-'}</p>
+          <p>${intervention.mission?.description ?? ''}</p>
         </div>
         
         <div class="info-section">
@@ -593,7 +593,7 @@ export class PrintService {
         <div class="signatures">
           <div class="signature-box">
             <strong>Technicien</strong><br>
-            ${intervention.techniciens[0]?.technicien.prenom} ${intervention.techniciens[0]?.technicien.nom}
+            ${(intervention.techniciens?.[0]?.technicien?.prenom ?? '-')} ${(intervention.techniciens?.[0]?.technicien?.nom ?? '-')}
           </div>
           <div class="signature-box">
             <strong>Responsable Technique</strong>
@@ -611,7 +611,7 @@ export class PrintService {
       </html>
     `;
 
-    this.openPrintWindow(html, `Fiche_Intervention_${intervention.mission.numIntervention}`);
+  this.openPrintWindow(html, `Fiche_Intervention_${intervention.mission?.numIntervention ?? '-'}`);
   }
 
   private static openPrintWindow(html: string, filename: string): void {

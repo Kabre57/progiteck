@@ -1,3 +1,12 @@
+// Type pour la création d'un rapport
+export interface CreateRapportRequest {
+  titre: string;
+  contenu: string;
+  interventionId?: number | undefined;
+  technicienId: number;
+  missionId: string | number;
+  images?: RapportImage[];
+}
 // Types de base pour l'application
 export interface Role {
   id: number;
@@ -119,7 +128,7 @@ export interface Intervention {
   dateHeureDebut: Date; // Ou string si c'est une chaîne ISO
   dateHeureFin?: Date; // Ou string si c'est une chaîne ISO
   duree?: number;
-  missionId: string;
+  missionId: number;
   createdAt: Date;
   updatedAt: Date;
   mission?: Mission;
@@ -142,7 +151,7 @@ export interface Devis {
   id: number;
   numero: string;
   clientId: number;
-  missionId?: string; // numIntervention de la mission
+    missionId?: number; // numIntervention de la mission
   titre: string;
   description?: string;
   montantHT: number;
@@ -213,7 +222,7 @@ export interface RapportMission {
   contenu: string;
   interventionId?: number;
   technicienId: number;
-  missionId: string; // numIntervention de la mission
+    missionId: number; // numIntervention de la mission
   createdById?: number;
   statut: 'soumis' | 'valide' | 'rejete';
   dateValidation?: Date; // Ou string si c'est une chaîne ISO
@@ -325,7 +334,7 @@ export interface EntreeMateriel {
 // Interfaces pour les requêtes API (basées sur interventionController.ts et interventions.ts)
 
 export interface CreateInterventionData {
-  missionId: string; // numIntervention de la mission
+  missionId: number; // numIntervention de la mission
   dateHeureDebut: string; // ISO 8601 string
   dateHeureFin?: string; // ISO 8601 string
   duree?: number; // en minutes
@@ -506,7 +515,7 @@ export interface CreateTechnicienData {
 
 export interface CreateDevisData {
   clientId: number;
-  missionId?: string; // numIntervention de la mission
+    missionId?: number; // numIntervention de la mission
   titre: string;
   description?: string;
   tauxTVA: number;

@@ -45,14 +45,17 @@ export const handleValidationErrors = (
   
   if (!errors.isEmpty()) {
     const errorMessages = errors.array().map(error => ({
-      field: error.type === 'field' ? error.path : 'unknown',
-      message: error.msg
+      field: (error as any).param || (error as any).path || 'unknown',
+      message: error.msg,
+      value: (error as any).value,
+      location: (error as any).location ?? ''
     }));
 
     logger.warn('Validation errors:', errorMessages);
 
     res.status(400).json({
       success: false,
+      code: 'VALIDATION_ERROR',
       message: 'Erreurs de validation',
       errors: errorMessages
     });

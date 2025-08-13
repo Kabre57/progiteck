@@ -1,7 +1,7 @@
 {
-  "name": "progitek-backend",
+  "name": "ProgiTeck-backend",
   "version": "1.0.0",
-  "description": "Backend API pour Progitek System",
+  "description": "Backend API pour ProgiTeck System",
   "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
@@ -59,11 +59,11 @@
     "typescript": "^5.3.2"
   },
   "keywords": [
-    "progitek",
+    "ProgiTeck",
     "api",
     "typescript",
     "express"
   ],
-  "author": "Progitek Team",
+  "author": "ProgiTeck Team",
   "license": "MIT"
 }

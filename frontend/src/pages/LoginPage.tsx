@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { Wrench, Mail, Lock, Loader2 } from 'lucide-react';
+import { Mail, Lock, Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+// Utilisation du chemin public pour le logo (Vite)
+const logo = '/images/logo.jpeg';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('admin@progitek.com');
+  const [email, setEmail] = useState('admin@ProgiTeck.com');
   const [password, setPassword] = useState('admin123');
   const [loading, setLoading] = useState(false);
   const { login, isAuthenticated } = useAuth();
@@ -31,21 +33,28 @@ export default function LoginPage() {
       <div className="max-w-md w-full space-y-8 animate-fade-in">
         <div className="bg-white rounded-2xl shadow-xl p-8 sm:p-10 transition-all duration-300 hover:shadow-2xl">
           <div className="flex flex-col items-center">
-            {/* Logo avec animation */}
-            <div className="flex items-center space-x-3 mb-6 transform hover:scale-105 transition-transform duration-300">
-              <div className="w-14 h-14 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-md">
-                <Wrench className="h-7 w-7 text-white" />
+            {/* Nouveau design avec logo */}
+            <div className="mb-8 flex flex-col items-center space-y-4">
+              <img 
+                src={logo} 
+                alt="Logo ProgiTeck" 
+                className="w-24 h-24 object-contain rounded-full border-4 border-white shadow-lg hover:scale-105 transition-transform duration-300"
+              />
+              <div className="text-center">
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                  ProgiTeck
+                </h1>
+                <p className="text-sm text-gray-500 mt-1">
+                  Solution technique innovante
+                </p>
               </div>
-              <span className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                ProgiTek
-              </span>
             </div>
             
-            <h2 className="text-center text-3xl font-extrabold text-gray-900 mb-2">
-              Connexion
+            <h2 className="text-center text-2xl font-bold text-gray-900 mb-2">
+              Connexion à votre espace
             </h2>
-            <p className="text-center text-gray-600 mb-8">
-              Accédez à votre espace de gestion technique
+            <p className="text-center text-gray-600 mb-6 text-sm">
+              Entrez vos identifiants pour accéder au tableau de bord
             </p>
           </div>
 
@@ -110,17 +119,6 @@ export default function LoginPage() {
           </form>
         </div>
       </div>
-      
-      {/* Ajoutez ceci dans votre CSS global pour l'animation */}
-      <style jsx global>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fade-in {
-          animation: fadeIn 0.5s ease-out forwards;
-        }
-      `}</style>
     </div>
   );
 }

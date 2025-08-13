@@ -34,7 +34,7 @@ const createInterventionValidation = [
     .notEmpty()
     .withMessage('L\'ID de la mission est requis')
     .isString()
-    .withMessage('L\'ID de la mission doit être une chaîne de caractères'),
+    .withMessage('L\'ID de la mission doit être une chaîne non vide'),
   
   body('techniciens')
     .isArray({ min: 1 })

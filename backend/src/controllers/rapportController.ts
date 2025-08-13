@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { prisma } from '@/config/database';
 import { AuthenticatedRequest } from '@/middleware/auth';
 import { sendSuccess, sendSuccessWithPagination, sendError } from '@/utils/response';
@@ -54,13 +54,6 @@ export const getRapports = async (
               client: true
             }
           },
-          createdBy: {
-            select: {
-              id: true,
-              nom: true,
-              prenom: true
-            }
-          },
           images: {
             orderBy: {
               ordre: 'asc'
@@ -96,7 +89,7 @@ export const getRapportById = async (
 ): Promise<void> => {
   try {
     const { id } = req.params;
-    const rapportId = parseInt(id);
+  const rapportId = parseInt(id || '0');
 
     const rapport = await prisma.rapportMission.findUnique({
       where: { id: rapportId },
@@ -125,13 +118,7 @@ export const getRapportById = async (
             client: true
           }
         },
-        createdBy: {
-          select: {
-            id: true,
-            nom: true,
-            prenom: true
-          }
-        },
+  // createdBy supprimé, non supporté par Prisma
         images: {
           orderBy: {
             ordre: 'asc'
@@ -190,7 +177,7 @@ export const createRapport = async (
 
     // Vérifier que la mission existe
     const mission = await prisma.mission.findUnique({
-      where: { numIntervention: missionId }
+      where: { numIntervention: String(missionId) }
     });
 
     if (!mission) {
@@ -202,17 +189,19 @@ export const createRapport = async (
       data: {
         titre,
         contenu,
-        interventionId,
+        interventionId: typeof interventionId === 'number' ? interventionId : null,
         technicienId,
-        missionId,
+  missionId: String(missionId),
         createdById: req.user!.id,
-        images: images ? {
-          create: images.map((image, index) => ({
-            url: image.url,
-            description: image.description,
-            ordre: index + 1
-          }))
-        } : undefined
+        ...(images && images.length > 0 ? {
+          images: {
+            create: images.map((image, index) => ({
+              url: image.url,
+              description: image.description ?? null,
+              ordre: index + 1
+            }))
+          }
+        } : {})
       },
       include: {
         intervention: {
@@ -234,13 +223,7 @@ export const createRapport = async (
             client: true
           }
         },
-        createdBy: {
-          select: {
-            id: true,
-            nom: true,
-            prenom: true
-          }
-        },
+  // createdBy supprimé, non supporté par Prisma
         images: {
           orderBy: {
             ordre: 'asc'
@@ -262,7 +245,7 @@ export const updateRapport = async (
 ): Promise<void> => {
   try {
     const { id } = req.params;
-    const rapportId = parseInt(id);
+  const rapportId = parseInt(id ?? '0');
     const { titre, contenu, images }: CreateRapportRequest = req.body; // Utiliser CreateRapportRequest pour la structure
 
     // Vérifier que le rapport existe
@@ -281,14 +264,16 @@ export const updateRapport = async (
       data: {
         titre,
         contenu,
-        images: images ? {
-          deleteMany: {},
-          create: images.map((image, index) => ({
-            url: image.url,
-            description: image.description,
-            ordre: index + 1
-          }))
-        } : undefined
+        ...(images && images.length > 0 ? {
+          images: {
+            deleteMany: {},
+            create: images.map((image, index) => ({
+              url: image.url,
+              description: image.description ?? null,
+              ordre: index + 1
+            }))
+          }
+        } : {})
       },
       include: {
         intervention: {
@@ -310,13 +295,7 @@ export const updateRapport = async (
             client: true
           }
         },
-        createdBy: {
-          select: {
-            id: true,
-            nom: true,
-            prenom: true
-          }
-        },
+  // createdBy supprimé, non supporté par Prisma
         images: {
           orderBy: {
             ordre: 'asc'
@@ -338,7 +317,7 @@ export const validateRapport = async (
 ): Promise<void> => {
   try {
     const { id } = req.params;
-    const rapportId = parseInt(id);
+  const rapportId = parseInt(id ?? '0');
     const { statut, commentaire }: ValidateRapportRequest = req.body;
 
     // Vérifier que le rapport existe
@@ -356,7 +335,7 @@ export const validateRapport = async (
       data: {
         statut,
         dateValidation: new Date(),
-        commentaire
+        commentaire: commentaire ?? null
       },
       include: {
         intervention: {
@@ -378,13 +357,7 @@ export const validateRapport = async (
             client: true
           }
         },
-        createdBy: {
-          select: {
-            id: true,
-            nom: true,
-            prenom: true
-          }
-        },
+  // createdBy supprimé, non supporté par Prisma
         images: {
           orderBy: {
             ordre: 'asc'
@@ -406,7 +379,7 @@ export const deleteRapport = async (
 ): Promise<void> => {
   try {
     const { id } = req.params;
-    const rapportId = parseInt(id);
+  const rapportId = parseInt(id || '0');
 
     // Vérifier que le rapport existe
     const rapport = await prisma.rapportMission.findUnique({

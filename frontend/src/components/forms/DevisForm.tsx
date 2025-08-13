@@ -118,7 +118,14 @@ export default function DevisForm({ devis, onSubmit, onCancel }: DevisFormProps)
         dateValidite: new Date(formData.dateValidite).toISOString(),
         lignes: formData.lignes
           .filter(l => l.designation.trim())
-          .map((l, index) => ({ ...l, ordre: index + 1 })),
+          .map((l, index) => ({
+            designation: l.designation,
+            quantite: l.quantite,
+            prixUnitaire: l.prixUnitaire,
+            ordre: index + 1,
+            devisId: undefined,
+            // montantHT: undefined // optionnel, non requis par Omit
+          })),
       });
       toast.success(devis ? 'Devis modifié avec succès' : 'Devis créé avec succès');
     } catch (error) {
@@ -229,7 +236,7 @@ export default function DevisForm({ devis, onSubmit, onCancel }: DevisFormProps)
         </div>
 
         {/* Mission */}
-        // Dans la partie Mission du formulaire
+       
 <div>
   <label htmlFor="mission" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
     Mission (optionnel)
