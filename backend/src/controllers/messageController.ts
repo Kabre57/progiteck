@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { prisma } from '@/config/database';
 import { AuthenticatedRequest } from '@/middleware/auth';
 import { sendSuccess, sendSuccessWithPagination, sendError } from '@/utils/response';

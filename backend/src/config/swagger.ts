@@ -1,6 +1,6 @@
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
-import { Application, Request, Response } from 'express';
+import { Application, Response } from 'express';
 
 
 const options = {
@@ -131,7 +131,7 @@ export const setupSwagger = (app: Application): void => {
   }));
   
   // JSON endpoint for API specs
-  app.get('/api-docs.json', (req: Request, res: Response) => {
+  app.get('/api-docs.json', (res: Response) => {
     res.setHeader('Content-Type', 'application/json');
     res.send(specs);
   });

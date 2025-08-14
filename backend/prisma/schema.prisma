@@ -47,6 +47,7 @@ model Utilisateur {
   messages                Message[]                @relation("MessageSender")
   messagesReceived        Message[]                @relation("MessageReceiver")
   notifications           Notification[]
+  notificationPreference   NotificationPreference?
   messageGroupes          MessageGroupe[] // Ajout ici
   devisValides            Devis[]                  @relation("DevisValidateur")
   devisValidesPDG         Devis[]                  @relation("DevisValidateurPDG")
@@ -373,6 +374,19 @@ model HistoriqueModification {
   user Utilisateur @relation(fields: [userId], references: [id])
 
   @@map("historique_modifications")
+}
+
+model NotificationPreference {
+  id                      Int      @id @default(autoincrement())
+  userId                  Int      @unique
+  checkUnusualActivity    Boolean  @default(true)
+  checkNewSignIn          Boolean  @default(true)
+  notifyLatestNews        Boolean  @default(true)
+  notifyFeatureUpdate     Boolean  @default(true)
+  notifyAccountTips       Boolean  @default(true)
+  utilisateur             Utilisateur @relation(fields: [userId], references: [id])
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
 }
 
 model PieceJointe {

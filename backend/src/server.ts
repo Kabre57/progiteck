@@ -105,7 +105,14 @@ app.get("/health", (_req, res) => {
 // Metrics endpoint
 app.get("/metrics", (_req, res) => {
   const healthStatus = getHealthStatus();
-  res.json(healthStatus.metrics);
+  res.json({
+    totalRequests: healthStatus.requests.total,
+    averageResponseTime: `${Math.round(healthStatus.requests.averageResponseTime)}ms`,
+    errorRate: `${Math.round(healthStatus.requests.errorRate * 100) / 100}%`,
+    uptime: `${healthStatus.uptime}s`,
+    memoryUsage: `${healthStatus.memory.used}MB / ${healthStatus.memory.total}MB (${healthStatus.memory.percentage}%)`,
+    cpuUsage: `${healthStatus.cpu.usage}%`
+  });
 });
 // Routes API
 app.use('/api', routes);

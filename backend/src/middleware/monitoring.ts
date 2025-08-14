@@ -26,20 +26,34 @@ interface HealthMetrics {
     averageResponseTime: number;
     errorRate: number;
   };
-  metrics?: {
-    totalRequests: number;
-    averageResponseTime: string;
-    errorRate: string;
-    uptime: string;
-    memoryUsage: string;
-    cpuUsage: string;
+}
+// Fonction pour obtenir les métriques CPU
+function getCpuMetrics(logger: any): { usage: number; loadAverage: number[] } {
+  let loadAvg: number[] = [0, 0, 0];
+  let usage = 0;
+  if (typeof os.loadavg === 'function') {
+    const result = os.loadavg();
+    if (Array.isArray(result) && result.length > 0) {
+      loadAvg = result;
+      if (typeof loadAvg[0] === 'number') {
+        usage = Math.round(loadAvg[0] * 100) / 100;
+      } else {
+        logger.error("os.loadavg()[0] est indéfini ou non numérique");
+      }
+    } else {
+      logger.error("os.loadavg() ne retourne pas un tableau valide");
+    }
+  } else {
+    logger.error("os.loadavg n'est pas une fonction");
+  }
+  return {
+    usage,
+    loadAverage: loadAvg
   };
 }
-
-// Métriques globales
 let totalRequests = 0;
-let totalResponseTime = 0;
 let totalErrors = 0;
+let totalResponseTime = 0;
 const startTime = Date.now();
 
 // Middleware de monitoring des performances
@@ -84,7 +98,7 @@ export const performanceMonitoring = (req: Request, res: Response, next: NextFun
 };
 
 // Middleware de monitoring des erreurs
-export const errorMonitoring = (error: Error, req: Request, res: Response, next: NextFunction): void => {
+export const errorMonitoring = (error: Error, req: Request, _res: Response, next: NextFunction): void => {
   totalErrors++;
   
   logger.error('Application error', {
@@ -113,10 +127,7 @@ const getSystemMetrics = () => {
       total: Math.round(totalMem / 1024 / 1024), // MB
       percentage: Math.round((usedMem / totalMem) * 100)
     },
-    cpu: {
-      usage: Math.round(os.loadavg()[0] * 100) / 100,
-      loadAverage: os.loadavg()
-    },
+  cpu: getCpuMetrics(logger),
     process: {
       heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024), // MB
       heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024), // MB
@@ -150,19 +161,12 @@ export const getHealthStatus = (): HealthMetrics => {
       averageResponseTime: Math.round(averageResponseTime),
       errorRate: Math.round(errorRate * 100) / 100
     },
-    metrics: {
-      totalRequests: totalRequests,
-      averageResponseTime: `${Math.round(averageResponseTime)}ms`,
-      errorRate: `${Math.round(errorRate * 100) / 100}%`,
-      uptime: `${uptime}s`,
-      memoryUsage: `${systemMetrics.memory.used}MB / ${systemMetrics.memory.total}MB (${systemMetrics.memory.percentage}%)`,
-      cpuUsage: `${systemMetrics.cpu.usage}%`
-    }
+  // ...existing code...
   };
 };
 
 // Middleware de surveillance de la santé
-export const healthCheck = (req: Request, res: Response): void => {
+export const healthCheck = (_req: Request, res: Response): void => {
   const healthStatus = getHealthStatus();
   
   // Déterminer le statut basé sur les métriques
@@ -196,7 +200,7 @@ export const logMetricsPeriodically = (): void => {
 };
 
 // Middleware de sécurité pour les headers
-export const securityHeaders = (req: Request, res: Response, next: NextFunction): void => {
+export const securityHeaders = (_req: Request, res: Response, next: NextFunction): void => {
   // Headers de sécurité
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');

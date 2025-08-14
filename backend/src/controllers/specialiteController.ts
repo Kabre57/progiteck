@@ -1,10 +1,10 @@
 import { Request, Response } from 'express';
 import { prisma } from '@/config/database';
 import { sendSuccess, sendError } from '@/utils/response';
-import { CreateSpecialiteRequest, UpdateSpecialiteRequest } from '@/types';
 import { logger } from '@/config/logger';
 
-export const getSpecialites = async (req: Request, res: Response): Promise<void> => {
+export const getSpecialites = async (_req: Request, res: Response): Promise<void> => {
+  // 'req' n'est pas utilisé, conservé uniquement pour la signature Express
   try {
     const specialites = await prisma.specialite.findMany({
       include: {
@@ -28,8 +28,8 @@ export const getSpecialites = async (req: Request, res: Response): Promise<void>
 
 export const getSpecialiteById = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
-    const specialiteId = parseInt(id);
+  const { id } = req.params;
+  const specialiteId = parseInt(id ?? '');
 
     const specialite = await prisma.specialite.findUnique({
       where: { id: specialiteId },
@@ -65,7 +65,7 @@ export const getSpecialiteById = async (req: Request, res: Response): Promise<vo
 
 export const createSpecialite = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { libelle, description }: CreateSpecialiteRequest = req.body;
+  const { libelle, description } = req.body;
 
     // Vérifier que la spécialité n'existe pas déjà
     const existingSpecialite = await prisma.specialite.findUnique({
@@ -100,9 +100,9 @@ export const createSpecialite = async (req: Request, res: Response): Promise<voi
 
 export const updateSpecialite = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
-    const specialiteId = parseInt(id);
-    const updateData: UpdateSpecialiteRequest = req.body;
+  const { id } = req.params;
+  const specialiteId = parseInt(id ?? '');
+  const updateData = req.body;
 
     // Vérifier que la spécialité existe
     const existingSpecialite = await prisma.specialite.findUnique({
@@ -147,8 +147,8 @@ export const updateSpecialite = async (req: Request, res: Response): Promise<voi
 
 export const deleteSpecialite = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
-    const specialiteId = parseInt(id);
+  const { id } = req.params;
+  const specialiteId = parseInt(id ?? '');
 
     // Vérifier que la spécialité existe
     const specialite = await prisma.specialite.findUnique({

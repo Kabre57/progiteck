@@ -59,7 +59,7 @@ export const cache = (options: CacheOptions = {}) => {
 
 // Cache invalidation middleware
 export const invalidateCache = (patterns: string[]) => {
-  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  return async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     // Store original json method
     const originalJson = res.json;
     

@@ -1,11 +1,11 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { prisma } from '@/config/database';
 import { AuthenticatedRequest } from '@/middleware/auth';
 import { sendSuccess, sendError } from '@/utils/response';
 import { logger } from '@/config/logger';
 
 export const getStats = async (
-  req: AuthenticatedRequest,
+  _req: AuthenticatedRequest,
   res: Response
 ): Promise<void> => {
   try {
@@ -110,7 +110,7 @@ export const getStats = async (
 };
 
 export const getCharts = async (
-  req: AuthenticatedRequest,
+  _req: AuthenticatedRequest,
   res: Response
 ): Promise<void> => {
   try {
@@ -243,11 +243,11 @@ export const getCharts = async (
 };
 
 export const getRecentActivity = async (
-  req: AuthenticatedRequest,
+  _req: AuthenticatedRequest,
   res: Response
 ): Promise<void> => {
   try {
-    const { limit } = req.query;
+  const { limit } = _req.query;
     const limitNumber = limit ? parseInt(limit as string) : 10;
 
     const recentActivity = await prisma.auditLog.findMany({
@@ -279,7 +279,7 @@ export const getRecentActivity = async (
 };
 
 export const getProjectsStatus = async (
-  req: AuthenticatedRequest,
+  _req: AuthenticatedRequest,
   res: Response
 ): Promise<void> => {
   try {
@@ -468,7 +468,7 @@ export const getProjectsStatus = async (
 };
 
 export const getKPIs = async (
-  req: AuthenticatedRequest,
+  _req: AuthenticatedRequest,
   res: Response
 ): Promise<void> => {
   try {

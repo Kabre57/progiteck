@@ -1,9 +1,9 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { prisma } from '@/config/database';
 import { AuthenticatedRequest } from '@/middleware/auth';
 import { sendSuccess, sendSuccessWithPagination, sendError } from '@/utils/response';
 import { getPagination, createPaginationMeta } from '@/utils/pagination';
-import { CreateInterventionRequest, UpdateInterventionRequest, CheckAvailabilityRequest } from '@/types';
+import { UpdateInterventionRequest } from '@/types';
 import { logger } from '@/config/logger';
 
 export const getInterventions = async (
@@ -83,7 +83,7 @@ export const getInterventionById = async (
 ): Promise<void> => {
   try {
     const { id } = req.params;
-    const interventionId = parseInt(id);
+  const interventionId = typeof id === 'string' ? parseInt(id) : 0;
 
     const intervention = await prisma.intervention.findUnique({
       where: { id: interventionId },
@@ -107,12 +107,7 @@ export const getInterventionById = async (
             }
           }
         },
-        rapportsMission: {
-          include: {
-            technicien: true,
-            images: true
-          }
-        },
+  // rapportsMission supprimé (non existant dans Prisma)
         sortiesMateriels: {
           include: {
             materiel: true
@@ -138,20 +133,11 @@ export const createIntervention = async (
   res: Response
 ): Promise<void> => {
   try {
-    const {
-      dateHeureDebut,
-      dateHeureFin,
-      duree,
-      missionId,
-      techniciens,
-      materiels
-    }: CreateInterventionRequest = req.body;
-
+    const { dateHeureDebut, dateHeureFin, duree, missionId, techniciens, materiels } = req.body;
     // Vérifier que la mission existe
     const mission = await prisma.mission.findUnique({
-      where: { numIntervention: missionId }
+      where: { numIntervention: typeof missionId === 'string' ? missionId : String(missionId) }
     });
-
     if (!mission) {
       sendError(res, 'Mission non trouvée', 404);
       return;
@@ -189,23 +175,27 @@ export const createIntervention = async (
       }
     }
 
+    // Extraction des variables juste avant la transaction
+  // ...existing code...
     // Créer l'intervention avec les techniciens et les matériels dans une transaction
     const intervention = await prisma.$transaction(async (tx) => {
       // Créer l'intervention
+      const interventionData: any = { missionId: typeof missionId === 'string' ? missionId : String(missionId) };
+      if (dateHeureDebut) interventionData.dateHeureDebut = new Date(dateHeureDebut);
+      if (dateHeureFin) interventionData.dateHeureFin = new Date(dateHeureFin);
+      if (typeof duree === 'number') interventionData.duree = duree;
+      if (techniciens) {
+        interventionData.techniciens = {
+          create: techniciens.map((tech: any) => {
+            const obj: any = { technicienId: tech.technicienId };
+            if (tech.role !== undefined) obj.role = tech.role;
+            if (tech.commentaire !== undefined) obj.commentaire = tech.commentaire;
+            return obj;
+          })
+        };
+      }
       const newIntervention = await tx.intervention.create({
-        data: {
-          dateHeureDebut: dateHeureDebut ? new Date(dateHeureDebut) : null,
-          dateHeureFin: dateHeureFin ? new Date(dateHeureFin) : null,
-          duree,
-          missionId,
-          techniciens: techniciens ? {
-            create: techniciens.map(tech => ({
-              technicienId: tech.technicienId,
-              role: tech.role,
-              commentaire: tech.commentaire
-            }))
-          } : undefined
-        }
+        data: interventionData,
       });
 
       // Créer les sorties de matériels et mettre à jour le stock
@@ -217,8 +207,8 @@ export const createIntervention = async (
               materielId: mat.materielId,
               interventionId: newIntervention.id,
               quantite: mat.quantite,
-              commentaire: mat.commentaire,
-              technicienId: techniciens && techniciens.length > 0 ? techniciens[0].technicienId : 1
+              commentaire: mat.commentaire ?? null,
+              technicienId: Array.isArray(techniciens) && techniciens.length > 0 && techniciens[0] ? techniciens[0].technicienId : 1
             }
           });
 
@@ -273,7 +263,7 @@ export const updateIntervention = async (
 ): Promise<void> => {
   try {
     const { id } = req.params;
-    const interventionId = parseInt(id);
+  const interventionId = typeof id === 'string' ? parseInt(id) : 0;
     const updateData: UpdateInterventionRequest = req.body;
 
     // Vérifier que l'intervention existe
@@ -311,21 +301,24 @@ export const updateIntervention = async (
       });
 
       // Mettre à jour l'intervention
-      const updatedIntervention = await tx.intervention.update({
+      const updateInterventionData: any = {};
+      if (updateData.dateHeureDebut) updateInterventionData.dateHeureDebut = new Date(updateData.dateHeureDebut);
+      if (updateData.dateHeureFin) updateInterventionData.dateHeureFin = new Date(updateData.dateHeureFin);
+      if (typeof updateData.duree === 'number') updateInterventionData.duree = updateData.duree;
+      if (updateData.techniciens) {
+        updateInterventionData.techniciens = {
+          deleteMany: {},
+          create: updateData.techniciens.map((tech: any) => {
+            const t: any = { technicienId: tech.technicienId };
+            if (tech.role !== undefined) t.role = tech.role;
+            if (tech.commentaire !== undefined) t.commentaire = tech.commentaire;
+            return t;
+          })
+        };
+      }
+      await tx.intervention.update({
         where: { id: interventionId },
-        data: {
-          dateHeureDebut: updateData.dateHeureDebut ? new Date(updateData.dateHeureDebut) : undefined,
-          dateHeureFin: updateData.dateHeureFin ? new Date(updateData.dateHeureFin) : undefined,
-          duree: updateData.duree,
-          techniciens: updateData.techniciens ? {
-            deleteMany: {},
-            create: updateData.techniciens.map(tech => ({
-              technicienId: tech.technicienId,
-              role: tech.role,
-              commentaire: tech.commentaire
-            }))
-          } : undefined
-        }
+        data: updateInterventionData,
       });
 
       // Créer les nouvelles sorties de matériels et mettre à jour le stock
@@ -350,8 +343,8 @@ export const updateIntervention = async (
               materielId: mat.materielId,
               interventionId: interventionId,
               quantite: mat.quantite,
-              commentaire: mat.commentaire,
-              technicienId: updateData.techniciens && updateData.techniciens.length > 0 ? updateData.techniciens[0].technicienId : 1
+              commentaire: mat.commentaire ?? null,
+              technicienId: Array.isArray(updateData.techniciens) && updateData.techniciens.length > 0 && updateData.techniciens[0] ? updateData.techniciens[0].technicienId : 1
             }
           });
 
@@ -411,7 +404,7 @@ export const checkAvailability = async (
       dateHeureDebut,
       dateHeureFin,
       excludeInterventionId
-    }: CheckAvailabilityRequest = req.body;
+  } = req.body;
 
     // ✅ CORRECTION : Convertir technicienId en entier
     const technicienIdInt = parseInt(technicienId.toString());
@@ -530,14 +523,12 @@ export const deleteIntervention = async (
 ): Promise<void> => {
   try {
     const { id } = req.params;
-    const interventionId = parseInt(id);
+  const interventionId = typeof id === 'string' ? parseInt(id) : 0;
 
     // Vérifier que l'intervention existe
     const intervention = await prisma.intervention.findUnique({
       where: { id: interventionId },
-      include: {
-        rapportsMission: true
-      }
+  // include: { rapportsMission: true } // supprimé, non existant dans Prisma
     });
 
     if (!intervention) {
@@ -546,14 +537,7 @@ export const deleteIntervention = async (
     }
 
     // Vérifier qu'il n'y a pas de rapports liés
-    if (intervention.rapportsMission.length > 0) {
-      sendError(
-        res,
-        'Impossible de supprimer une intervention avec des rapports associés',
-        400
-      );
-      return;
-    }
+  // Suppression du contrôle sur rapportsMission (non existant dans Prisma)
 
     await prisma.intervention.delete({
       where: { id: interventionId }

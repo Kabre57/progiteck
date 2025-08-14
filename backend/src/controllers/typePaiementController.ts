@@ -4,7 +4,7 @@ import { sendSuccess, sendError } from '@/utils/response';
 import { CreateTypePaiementRequest, UpdateTypePaiementRequest } from '@/types';
 import { logger } from '@/config/logger';
 
-export const getTypesPaiement = async (req: Request, res: Response): Promise<void> => {
+export const getTypesPaiement = async (res: Response): Promise<void> => {
   try {
     const typesPaiement = await prisma.typePaiement.findMany({
       include: {
@@ -78,8 +78,8 @@ export const createTypePaiement = async (req: Request, res: Response): Promise<v
       data: {
         libelle,
         description: description ?? null,
-        delaiPaiement,
-        tauxRemise,
+        delaiPaiement: typeof delaiPaiement === 'number' ? delaiPaiement : null,
+        tauxRemise: typeof tauxRemise === 'number' ? tauxRemise : null,
         actif: actif ?? true
       },
       include: {

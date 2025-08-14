@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { prisma } from '@/config/database';
 import { AuthenticatedRequest } from '@/middleware/auth';
 import { sendSuccess, sendSuccessWithPagination, sendError } from '@/utils/response';
@@ -104,6 +104,10 @@ export const getDevisById = async (
 ): Promise<void> => {
   try {
     const { id } = req.params;
+    if (!id) {
+      sendError(res, "Paramètre 'id' manquant", 400);
+      return;
+    }
     const devisId = parseInt(id);
 
     const devis = await prisma.devis.findUnique({
@@ -178,7 +182,7 @@ export const createDevis = async (
     // Si missionId est fourni, vérifier qu'elle existe
     if (missionId) {
       const mission = await prisma.mission.findUnique({
-        where: { numIntervention: missionId }
+        where: { numIntervention: String(missionId) }
       });
 
       if (!mission) {
@@ -197,9 +201,9 @@ export const createDevis = async (
       data: {
         numero,
         clientId,
-        missionId,
+        missionId: missionId ? String(missionId) : null,
         titre,
-        description,
+  description: typeof description === 'string' ? description : null,
         montantHT: montants.montantHT,
         tauxTVA,
         montantTTC: montants.montantTTC,
@@ -242,6 +246,10 @@ export const updateDevis = async (
 ): Promise<void> => {
   try {
     const { id } = req.params;
+    if (!id) {
+      sendError(res, "Paramètre 'id' manquant", 400);
+      return;
+    }
     const devisId = parseInt(id);
     const {
       titre,
@@ -281,11 +289,16 @@ export const updateDevis = async (
       // Si les lignes ne sont pas fournies, récupérer les lignes existantes
       let lignesForCalculation = lignes;
       if (!lignes) {
-        const existingLignes = await prisma.ligneDevis.findMany({
-          where: { devisId: devisId },
-          select: { quantite: true, prixUnitaire: true }
-        });
-        lignesForCalculation = existingLignes;
+  const existingLignes = await prisma.devisLigne.findMany({
+    where: { devisId: devisId },
+    select: { designation: true, quantite: true, prixUnitaire: true }
+  });
+  // Vérifier que toutes les lignes ont une désignation
+  if (existingLignes.some(ligne => typeof ligne.designation !== 'string' || !ligne.designation.trim())) {
+    sendError(res, "Toutes les lignes doivent avoir une désignation pour le calcul.", 400);
+    return;
+  }
+  lignesForCalculation = existingLignes;
       }
 
       // Calculer les nouveaux montants
@@ -299,7 +312,7 @@ export const updateDevis = async (
     // Mettre à jour le devis dans une transaction
     const devis = await prisma.$transaction(async (tx) => {
       // Mettre à jour le devis
-      const updatedDevis = await tx.devis.update({
+      await tx.devis.update({
         where: { id: devisId },
         data: updateData
       });
@@ -307,12 +320,12 @@ export const updateDevis = async (
       // Si les lignes sont fournies, les remplacer
       if (lignes) {
         // Supprimer les anciennes lignes
-        await tx.ligneDevis.deleteMany({
+  await tx.devisLigne.deleteMany({
           where: { devisId: devisId }
         });
 
         // Créer les nouvelles lignes
-        await tx.ligneDevis.createMany({
+  await tx.devisLigne.createMany({
           data: lignes.map((ligne, index) => ({
             devisId: devisId,
             designation: ligne.designation,
@@ -370,6 +383,10 @@ export const validateDevis = async (
 ): Promise<void> => {
   try {
     const { id } = req.params;
+    if (!id) {
+      sendError(res, "Paramètre 'id' manquant", 400);
+      return;
+    }
     const devisId = parseInt(id);
     const { statut, commentaireDG, commentairePDG }: ValidateDevisRequest = req.body;
 
@@ -450,6 +467,10 @@ export const convertToInvoice = async (
 ): Promise<void> => {
   try {
     const { id } = req.params;
+    if (!id) {
+      sendError(res, "Paramètre 'id' manquant", 400);
+      return;
+    }
     const devisId = parseInt(id);
 
     // Vérifier que le devis existe et est accepté par le client
@@ -465,7 +486,8 @@ export const convertToInvoice = async (
           include: {
             typePaiement: true
           }
-        }
+        },
+        facture: true
       }
     });
 
@@ -480,7 +502,7 @@ export const convertToInvoice = async (
       return;
     }
 
-    if (devis.factureId) {
+  if (devis.facture) {
       sendError(res, 'Ce devis a déjà été converti en facture', 400);
       return;
     }
@@ -528,7 +550,7 @@ export const convertToInvoice = async (
       where: { id: devisId },
       data: {
         statut: 'facture',
-        factureId: facture.id
+  facture: { connect: { id: facture.id } }
       }
     });
 
@@ -545,6 +567,10 @@ export const deleteDevis = async (
 ): Promise<void> => {
   try {
     const { id } = req.params;
+    if (!id) {
+      sendError(res, "Paramètre 'id' manquant", 400);
+      return;
+    }
     const devisId = parseInt(id);
 
     // Vérifier que le devis existe

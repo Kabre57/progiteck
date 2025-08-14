@@ -3,7 +3,21 @@ import { prisma } from '@/config/database';
 import { AuthenticatedRequest } from '@/middleware/auth';
 import { sendSuccess, sendSuccessWithPagination, sendError } from '@/utils/response';
 import { getPagination, createPaginationMeta } from '@/utils/pagination';
-import { CreateClientRequest } from '@/types';
+// Définition locale du type pour la mise à jour du client
+type UpdateClientData = {
+  nom?: string;
+  prenom?: string;
+  email?: string;
+  phone?: string | null;
+  theme?: string;
+  displayName?: string | null;
+  address?: string | null;
+  state?: string | null;
+  country?: string | null;
+  designation?: string | null;
+  typePaiementId?: number;
+  statut?: string;
+};
 import { logger } from '@/config/logger';
 
 export const getClients = async (
@@ -69,21 +83,17 @@ export const getClientById = async (
 ): Promise<void> => {
   try {
     const { id } = req.params;
+    if (!id) {
+      sendError(res, "Paramètre 'id' manquant", 400);
+      return;
+    }
     const clientId = parseInt(id);
 
     const client = await prisma.client.findUnique({
       where: { id: clientId },
       include: {
         typePaiement: true,
-        missions: {
-          include: {
-            _count: {
-              select: {
-                interventions: true
-              }
-            }
-          }
-        },
+        missions: true,
         devis: true,
         factures: true,
         _count: {
@@ -120,7 +130,7 @@ export const createClient = async (
       typeDeCart,
       typePaiementId,
       localisation
-    }: CreateClientRequest = req.body;
+  } = req.body;
     let telephone = req.body.telephone;
 
     // Normaliser le numéro de téléphone avant sauvegarde
@@ -193,12 +203,16 @@ export const updateClient = async (
 ): Promise<void> => {
   try {
     const { id } = req.params;
+    if (!id) {
+      sendError(res, "Paramètre 'id' manquant", 400);
+      return;
+    }
     const clientId = parseInt(id);
-    const updateData: Partial<CreateClientRequest> = req.body;
+    const updateData: UpdateClientData = req.body;
 
     // Vérifier que le client existe
     const existingClient = await prisma.client.findUnique({
-      where: { id: clientId }
+  where: { id: clientId }
     });
 
     if (!existingClient) {
@@ -258,6 +272,10 @@ export const deleteClient = async (
 ): Promise<void> => {
   try {
     const { id } = req.params;
+    if (!id) {
+      sendError(res, "Paramètre 'id' manquant", 400);
+      return;
+    }
     const clientId = parseInt(id);
 
     // Vérifier que le client existe

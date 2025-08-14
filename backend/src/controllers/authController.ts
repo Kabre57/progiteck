@@ -53,8 +53,9 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     // Créer les tokens
     const tokenPayload: AuthTokenPayload = {
       userId: user.id,
+      id: user.id,
       email: user.email,
-      roleId: user.roleId
+      role: user.role.libelle
     };
 
     const accessToken = jwt.sign(tokenPayload, jwtSecret, { expiresIn: '1h' });
@@ -124,8 +125,9 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
     // Créer un nouveau access token
     const tokenPayload: AuthTokenPayload = {
       userId: user.id,
+      id: user.id,
       email: user.email,
-      roleId: user.roleId
+      role: user.role.libelle
     };
 
     const accessToken = jwt.sign(tokenPayload, jwtSecret, { expiresIn: '1h' });

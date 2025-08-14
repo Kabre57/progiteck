@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Devis } from '@/types';
+import { Devis, CreateDevisData } from '@/types';
 import { clientService } from '@/services/clientService';
 import { missionService } from '@/services/missionService';
 import toast from 'react-hot-toast';
@@ -14,13 +14,18 @@ export default function DevisForm({ devis, onSubmit, onCancel }: DevisFormProps)
   // État du formulaire
   const [formData, setFormData] = useState({
     clientId: devis?.clientId || '',
-    missionId: devis?.missionId || '',
+    missionId: typeof devis?.missionId === 'number' ? devis.missionId : undefined,
     titre: devis?.titre || '',
     description: devis?.description || '',
     tauxTVA: devis?.tauxTVA || 20,
     dateValidite: devis?.dateValidite ? 
       new Date(devis.dateValidite).toISOString().slice(0, 10) : '',
-    lignes: devis?.lignes || [
+    lignes: devis?.lignes?.map(l => ({
+      designation: l.designation,
+      quantite: l.quantite,
+      prixUnitaire: l.prixUnitaire,
+      ordre: l.ordre ?? 1,
+    })) || [
       { designation: '', quantite: 1, prixUnitaire: 0, ordre: 1 }
     ],
   });
@@ -111,10 +116,10 @@ export default function DevisForm({ devis, onSubmit, onCancel }: DevisFormProps)
     setErrors([]);
     
     try {
-      await onSubmit({
-        ...formData,
+      const { missionId, ...rest } = formData;
+      const dataToSend: any = {
+        ...rest,
         clientId: Number(formData.clientId),
-        missionId: formData.missionId ? Number(formData.missionId) : undefined,
         dateValidite: new Date(formData.dateValidite).toISOString(),
         lignes: formData.lignes
           .filter(l => l.designation.trim())
@@ -123,10 +128,12 @@ export default function DevisForm({ devis, onSubmit, onCancel }: DevisFormProps)
             quantite: l.quantite,
             prixUnitaire: l.prixUnitaire,
             ordre: index + 1,
-            devisId: undefined,
-            // montantHT: undefined // optionnel, non requis par Omit
           })),
-      });
+      };
+      if (typeof missionId === 'number') {
+        dataToSend.missionId = missionId;
+      }
+      await onSubmit(dataToSend);
       toast.success(devis ? 'Devis modifié avec succès' : 'Devis créé avec succès');
     } catch (error) {
       console.error('Erreur lors de la sauvegarde:', error);
@@ -164,7 +171,8 @@ export default function DevisForm({ devis, onSubmit, onCancel }: DevisFormProps)
   const updateLigne = (index: number, field: string, value: any) => {
     setFormData(prev => {
       const newLignes = [...prev.lignes];
-      newLignes[index] = { ...newLignes[index], [field]: value };
+      const ligne = newLignes[index] || { designation: '', quantite: 1, prixUnitaire: 0, ordre: index + 1 };
+      newLignes[index] = { ...ligne, [field]: value };
       return { ...prev, lignes: newLignes };
     });
   };
@@ -244,7 +252,13 @@ export default function DevisForm({ devis, onSubmit, onCancel }: DevisFormProps)
   <select
     id="mission"
     value={formData.missionId}
-    onChange={(e) => setFormData({ ...formData, missionId: e.target.value })}
+    onChange={(e) => {
+      const value = e.target.value;
+      setFormData(prev => ({
+        ...prev,
+        missionId: value ? Number(value) : undefined
+      }));
+    }}
     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
   >
     <option value="">Sélectionner une mission</option>

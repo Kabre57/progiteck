@@ -39,10 +39,7 @@ interface CreateEntreeRequest {
 }
 
 // Gestion des matériels
-export const getMateriels = async (
-  req: AuthenticatedRequest,
-  res: Response
-): Promise<void> => {
+export const getMateriels = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const { page, limit, search, categorie, seuilAlerte } = req.query;
     const pagination = getPagination({
@@ -102,12 +99,13 @@ export const getMateriels = async (
   }
 };
 
-export const getMaterielById = async (
-  req: AuthenticatedRequest,
-  res: Response
-): Promise<void> => {
+export const getMaterielById = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
+    if (!id) {
+      sendError(res, "L'identifiant du matériel est requis", 400);
+      return;
+    }
     const materielId = parseInt(id);
 
     const materiel = await prisma.materiel.findUnique({
@@ -156,10 +154,7 @@ export const getMaterielById = async (
   }
 };
 
-export const createMateriel = async (
-  req: AuthenticatedRequest,
-  res: Response
-): Promise<void> => {
+export const createMateriel = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const {
       reference,
@@ -189,16 +184,16 @@ export const createMateriel = async (
       data: {
         reference,
         designation,
-        description,
+        description: description ?? null,
         quantiteTotale,
         quantiteDisponible: quantiteTotale, // Initialement égale à la quantité totale
         seuilAlerte,
-        emplacement,
+        emplacement: emplacement ?? null,
         categorie,
-        prixUnitaire,
-        fournisseur,
+        prixUnitaire: prixUnitaire ?? null,
+        fournisseur: fournisseur ?? null,
         dateAchat: dateAchat ? new Date(dateAchat) : null,
-        garantie
+        garantie: garantie ?? null
       },
       include: {
         _count: {
@@ -217,12 +212,13 @@ export const createMateriel = async (
   }
 };
 
-export const updateMateriel = async (
-  req: AuthenticatedRequest,
-  res: Response
-): Promise<void> => {
+export const updateMateriel = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
+    if (!id) {
+      sendError(res, "L'identifiant du matériel est requis", 400);
+      return;
+    }
     const materielId = parseInt(id);
     const updateData: Partial<CreateMaterielRequest> = req.body;
 
@@ -252,15 +248,16 @@ export const updateMateriel = async (
       where: { id: materielId },
       data: {
         ...updateData,
-        dateAchat: updateData.dateAchat ? new Date(updateData.dateAchat) : undefined
+        description: updateData.description ?? null,
+        emplacement: updateData.emplacement ?? null,
+        prixUnitaire: updateData.prixUnitaire ?? null,
+        fournisseur: updateData.fournisseur ?? null,
+        dateAchat: updateData.dateAchat ? new Date(updateData.dateAchat) : null,
+        garantie: updateData.garantie ?? null
       },
       include: {
-        _count: {
-          select: {
-            sorties: true,
-            entrees: true
-          }
-        }
+        sorties: true,
+        entrees: true
       }
     });
 
@@ -271,11 +268,7 @@ export const updateMateriel = async (
   }
 };
 
-// Gestion des sorties
-export const createSortie = async (
-  req: AuthenticatedRequest,
-  res: Response
-): Promise<void> => {
+export const createSortie = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const {
       materielId,
@@ -319,8 +312,8 @@ export const createSortie = async (
           interventionId,
           technicienId,
           quantite,
-          motif,
-          commentaire
+          motif: motif ?? null,
+          commentaire: commentaire ?? null
         },
         include: {
           materiel: true,
@@ -352,12 +345,8 @@ export const createSortie = async (
     sendError(res, 'Erreur lors de l\'enregistrement de la sortie');
   }
 };
-
 // Gestion des entrées
-export const createEntree = async (
-  req: AuthenticatedRequest,
-  res: Response
-): Promise<void> => {
+export const createEntree = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const {
       materielId,
@@ -386,10 +375,10 @@ export const createEntree = async (
           materielId,
           quantite,
           source,
-          prixTotal,
-          fournisseur,
-          facture,
-          commentaire
+          prixTotal: prixTotal ?? null,
+          fournisseur: fournisseur ?? null,
+          facture: facture ?? null,
+          commentaire: commentaire ?? null
         },
         include: {
           materiel: true
@@ -451,7 +440,7 @@ export const checkDisponibilite = async (
 
 // Alertes de stock
 export const getAlertes = async (
-  req: AuthenticatedRequest,
+  _req: AuthenticatedRequest, // Ajout du _ pour le paramètre non utilisé
   res: Response
 ): Promise<void> => {
   try {
@@ -475,7 +464,7 @@ export const getAlertes = async (
 
 // Statistiques
 export const getStatsStock = async (
-  req: AuthenticatedRequest,
+  _req: AuthenticatedRequest, // Ajout du _ pour le paramètre non utilisé
   res: Response
 ): Promise<void> => {
   try {

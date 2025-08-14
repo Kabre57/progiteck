@@ -9,7 +9,8 @@ interface AuthenticatedRequest extends Request {
     id: number;
     email: string;
     roleId: number;
-    role: {
+    role: string; // libelle du rôle
+    roleInfo?: {
       id: number;
       libelle: string;
     };
@@ -65,7 +66,8 @@ export const authenticateToken = async (
       id: user.id,
       email: user.email,
       roleId: user.roleId,
-      role: user.role
+      role: user.role.libelle,
+      roleInfo: user.role
     };
 
     next();
@@ -88,7 +90,7 @@ export const requireRoles = (roles: string[]) => {
       return;
     }
 
-    if (!roles.includes(req.user.role.libelle)) {
+  if (!roles.includes(req.user.role)) {
       res.status(403).json({
         success: false,
         message: 'Permissions insuffisantes'

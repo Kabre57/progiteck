@@ -1,9 +1,8 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { prisma } from '@/config/database';
 import { AuthenticatedRequest } from '@/middleware/auth';
 import { sendSuccess, sendSuccessWithPagination, sendError } from '@/utils/response';
 import { getPagination, createPaginationMeta } from '@/utils/pagination';
-import { CreateNotificationRequest, UpdateNotificationPreferencesRequest } from '@/types';
 import { logger } from '@/config/logger';
 
 export const getNotifications = async (
@@ -78,22 +77,22 @@ export const getPreferences = async (
   try {
     const userId = req.user!.id;
 
-    let preferences = await prisma.notificationPreference.findUnique({
-      where: { userId }
-    });
+      let preferences = await prisma.notificationPreference.findUnique({
+        where: { userId }
+      });
 
     // Créer des préférences par défaut si elles n'existent pas
     if (!preferences) {
-      preferences = await prisma.notificationPreference.create({
-        data: {
-          userId,
-          checkUnusualActivity: true,
-          checkNewSignIn: true,
-          notifyLatestNews: true,
-          notifyFeatureUpdate: true,
-          notifyAccountTips: true
-        }
-      });
+        preferences = await prisma.notificationPreference.create({
+          data: {
+            userId,
+            checkUnusualActivity: true,
+            checkNewSignIn: true,
+            notifyLatestNews: true,
+            notifyFeatureUpdate: true,
+            notifyAccountTips: true,
+          }
+        });
     }
 
     sendSuccess(res, preferences, 'Préférences de notification récupérées');
@@ -109,14 +108,14 @@ export const updatePreferences = async (
 ): Promise<void> => {
   try {
     const userId = req.user!.id;
-    const updateData: UpdateNotificationPreferencesRequest = req.body;
+      const updateData = req.body;
 
     const preferences = await prisma.notificationPreference.upsert({
       where: { userId },
       update: updateData,
       create: {
         userId,
-        ...updateData
+        ...updateData,
       }
     });
 
@@ -132,8 +131,8 @@ export const markAsRead = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { id } = req.params;
-    const notificationId = parseInt(id);
+  const { id } = req.params;
+  const notificationId = parseInt(id ?? '');
     const userId = req.user!.id;
 
     // Vérifier que la notification existe et appartient à l'utilisateur
@@ -194,7 +193,7 @@ export const createNotification = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { userId, type, message, data }: CreateNotificationRequest = req.body;
+  const { userId, type, message, data } = req.body;
 
     // Vérifier que l'utilisateur destinataire existe
     const user = await prisma.utilisateur.findUnique({
@@ -227,8 +226,8 @@ export const deleteNotification = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { id } = req.params;
-    const notificationId = parseInt(id);
+  const { id } = req.params;
+  const notificationId = parseInt(id ?? '');
     const userId = req.user!.id;
 
     // Vérifier que la notification existe et appartient à l'utilisateur

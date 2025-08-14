@@ -4,7 +4,7 @@ import { AuthenticatedRequest } from '@/middleware/auth';
 import { sendSuccess, sendSuccessWithPagination, sendError } from '@/utils/response';
 import { getPagination, createPaginationMeta } from '@/utils/pagination';
 import { generateMissionNumber } from '@/utils/generators';
-import { CreateMissionRequest, Mission } from '@/types';
+// import supprimé car types non existants ou inutilisés
 import { logger } from '@/config/logger';
 
 export const getMissions = async (
@@ -78,9 +78,12 @@ export const getMissionById = async (
 ): Promise<void> => {
   try {
     const { numIntervention } = req.params;
-
+    if (!numIntervention || typeof numIntervention !== 'string') {
+      sendError(res, "Le numéro d'intervention est requis", 400);
+      return;
+    }
     const mission = await prisma.mission.findUnique({
-      where: { numIntervention },
+      where: { numIntervention: numIntervention },
       include: {
         client: {
           include: {
@@ -141,10 +144,9 @@ export const createMission = async (
       objectifDuContrat,
       description,
       priorite,
-      statut,
       dateSortieFicheIntervention,
       clientId
-    }: CreateMissionRequest = req.body;
+    } = req.body;
 
     logger.info('Creating mission with data:', req.body);
 
@@ -159,7 +161,7 @@ export const createMission = async (
     }
 
     // Générer un numéro d'intervention unique
-    let numIntervention: string;
+  let numIntervention: string = '';
     let isUnique = false;
     let attempts = 0;
     const maxAttempts = 5;
@@ -228,12 +230,14 @@ export const updateMission = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { numIntervention } = req.params;
-    const updateData: Partial<CreateMissionRequest> = req.body;
-
-    // Vérifier que la mission existe
+    const numInterventionParam = req.params.numIntervention;
+    if (!numInterventionParam || typeof numInterventionParam !== 'string') {
+      sendError(res, "Le numéro d'intervention est requis", 400);
+      return;
+    }
+    const updateData = req.body;
     const existingMission = await prisma.mission.findUnique({
-      where: { numIntervention }
+      where: { numIntervention: numInterventionParam }
     });
 
     if (!existingMission) {
@@ -254,7 +258,7 @@ export const updateMission = async (
     }
 
     const mission = await prisma.mission.update({
-      where: { numIntervention },
+      where: { numIntervention: numInterventionParam },
       data: {
         ...updateData,
         dateSortieFicheIntervention: updateData.dateSortieFicheIntervention 
@@ -267,6 +271,8 @@ export const updateMission = async (
             typePaiement: true
           }
         },
+        interventions: true,
+        rapports: true,
         _count: {
           select: {
             interventions: true,
@@ -288,11 +294,15 @@ export const deleteMission = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { numIntervention } = req.params;
+    const numInterventionParam = req.params.numIntervention;
+    if (!numInterventionParam || typeof numInterventionParam !== 'string') {
+      sendError(res, "Le numéro d'intervention est requis", 400);
+      return;
+    }
 
     // Vérifier que la mission existe
     const mission = await prisma.mission.findUnique({
-      where: { numIntervention },
+      where: { numIntervention: numInterventionParam },
       include: {
         interventions: true,
         rapports: true
@@ -305,7 +315,7 @@ export const deleteMission = async (
     }
 
     // Vérifier qu'il n'y a pas d'interventions ou de rapports liés
-    if (mission.interventions.length > 0 || mission.rapports.length > 0) {
+    if ((mission.interventions && mission.interventions.length > 0) || (mission.rapports && mission.rapports.length > 0)) {
       sendError(
         res,
         'Impossible de supprimer une mission avec des interventions ou rapports associés',
@@ -315,7 +325,7 @@ export const deleteMission = async (
     }
 
     await prisma.mission.delete({
-      where: { numIntervention }
+      where: { numIntervention: numInterventionParam }
     });
 
     sendSuccess(res, null, 'Mission supprimée avec succès');

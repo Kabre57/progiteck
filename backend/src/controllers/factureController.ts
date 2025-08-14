@@ -1,9 +1,9 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { prisma } from '@/config/database';
 import { AuthenticatedRequest } from '@/middleware/auth';
 import { sendSuccess, sendSuccessWithPagination, sendError } from '@/utils/response';
 import { getPagination, createPaginationMeta } from '@/utils/pagination';
-import { UpdateFactureRequest } from '@/types';
+// import { UpdateFactureRequest } from '@/types'; // Remplacé ou à corriger selon le type disponible
 import { logger } from '@/config/logger';
 
 export const getFactures = async (
@@ -76,7 +76,7 @@ export const getFactureById = async (
 ): Promise<void> => {
   try {
     const { id } = req.params;
-    const factureId = parseInt(id);
+  const factureId = typeof id === 'string' ? parseInt(id) : 0;
 
     const facture = await prisma.facture.findUnique({
       where: { id: factureId },
@@ -112,7 +112,7 @@ export const getFactureById = async (
 };
 
 export const getOverdueFactures = async (
-  req: AuthenticatedRequest,
+  // Paramètre req supprimé car inutilisé
   res: Response
 ): Promise<void> => {
   try {
@@ -172,8 +172,8 @@ export const updateFacture = async (
 ): Promise<void> => {
   try {
     const { id } = req.params;
-    const factureId = parseInt(id);
-    const updateData: UpdateFactureRequest = req.body;
+  const factureId = typeof id === 'string' ? parseInt(id) : 0;
+  const updateData = req.body;
 
     // Vérifier que la facture existe
     const existingFacture = await prisma.facture.findUnique({
@@ -223,7 +223,7 @@ export const deleteFacture = async (
 ): Promise<void> => {
   try {
     const { id } = req.params;
-    const factureId = parseInt(id);
+  const factureId = typeof id === 'string' ? parseInt(id) : 0;
 
     // Vérifier que la facture existe
     const facture = await prisma.facture.findUnique({

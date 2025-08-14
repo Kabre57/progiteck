@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/config/database';
 import { AuthenticatedRequest } from '@/middleware/auth';
@@ -353,8 +353,8 @@ export const getUserById = async (
 
 export const updateUser = async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { id } = req.params;
-    const userId = parseInt(id);
+  const { id } = req.params;
+  const userId = parseInt(id ?? '');
     const updateData: UpdateUserRequest = req.body;
 
     // Log des données reçues
@@ -556,7 +556,7 @@ export const resetUserPassword = async (
 };
 
 export const getRoles = async (
-  req: AuthenticatedRequest,
+  _req: AuthenticatedRequest,
   res: Response
 ): Promise<void> => {
   try {

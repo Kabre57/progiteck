@@ -24,17 +24,16 @@ class CacheService {
     try {
       this.client = createClient({
         url: process.env.REDIS_URL,
-        socket: {
-          reconnectStrategy: (retries) => {
+        socket: Object.assign({
+          reconnectStrategy: (retries: number) => {
             const delay = Math.min(
               this.baseReconnectDelay * Math.pow(2, retries),
               15000 // Max 15s de délai
             );
             logger.warn(`Tentative de reconnexion Redis #${retries} dans ${delay}ms`);
             return delay;
-          },
-          tls: process.env.NODE_ENV === 'production' ? {} : undefined
-        },
+          }
+        }, process.env.NODE_ENV === 'production' ? { tls: false } : {}),
         pingInterval: 30000 // Envoie un PING toutes les 30s pour maintenir la connexion
       });
 
