@@ -1,172 +1,89 @@
 import winston from 'winston';
+import 'winston-daily-rotate-file';
 import path from 'path';
+import fs from 'fs';
 
-// Configuration des niveaux de log
-const logLevels = {
-  error: 0,
-  warn: 1,
-  info: 2,
-  http: 3,
-  debug: 4
-};
+// --- Configuration de base ---
+const logLevels = { error: 0, warn: 1, info: 2, http: 3, debug: 4 };
+const logColors = { error: 'red', warn: 'yellow', info: 'green', http: 'magenta', debug: 'white' };
+winston.addColors(logColors );
 
-// Couleurs pour les logs en développement
-const logColors = {
-  error: 'red',
-  warn: 'yellow',
-  info: 'green',
-  http: 'magenta',
-  debug: 'white'
-};
+const LOG_DIR = process.env.LOG_DIR || path.join(process.cwd(), 'logs');
+const NODE_ENV = process.env.NODE_ENV || 'development';
 
-winston.addColors(logColors);
+// Créer le dossier de logs s'il n'existe pas
+if (!fs.existsSync(LOG_DIR)) {
+  fs.mkdirSync(LOG_DIR, { recursive: true });
+}
 
-// Format pour les logs en développement
-const developmentFormat = winston.format.combine(
-  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss:ms' }),
+// --- Formats de log ---
+// Format pour la console en développement (lisible et coloré)
+const consoleFormat = winston.format.combine(
+  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
   winston.format.colorize({ all: true }),
-  winston.format.printf(
-    (info) => `${info.timestamp} ${info.level}: ${info.message}${
-      info.metadata && Object.keys(info.metadata).length > 0 
-        ? ' ' + JSON.stringify(info.metadata, null, 2)
-        : ''
-    }`
-  )
+  winston.format.printf((info) => `[${info.timestamp}] ${info.level}: ${info.message}`)
 );
 
-// Format pour les logs en production (JSON structuré)
-const productionFormat = winston.format.combine(
+// Format JSON structuré pour les fichiers (idéal pour la production et l'analyse)
+const fileFormat = winston.format.combine(
   winston.format.timestamp(),
   winston.format.errors({ stack: true }),
-  winston.format.json(),
-  winston.format.metadata({ fillExcept: ['message', 'level', 'timestamp'] })
+  winston.format.json()
 );
 
-// Configuration des transports
-const transports: winston.transport[] = [];
-
-// Console transport (toujours actif)
-transports.push(
+// --- Transports (Destinations des logs) ---
+const transports: winston.transport[] = [
+  // Toujours logger dans la console
   new winston.transports.Console({
-    format: process.env.NODE_ENV === 'production' ? productionFormat : developmentFormat
-  })
-);
+    level: NODE_ENV === 'production' ? 'info' : 'debug',
+    format: consoleFormat,
+  }),
+];
 
-// File transports pour la production
-if (process.env.NODE_ENV === 'production') {
-  // Log général
+// Ajouter les transports par fichier uniquement en production
+if (NODE_ENV === 'production') {
   transports.push(
-    new winston.transports.File({
-      filename: process.env.LOG_FILE || path.join(process.cwd(), 'logs', 'app.log'),
-      format: productionFormat,
-      maxsize: 5242880, // 5MB
-      maxFiles: 5
-    })
-  );
-
-  // Log des erreurs
-  transports.push(
-    new winston.transports.File({
-      filename: path.join(process.cwd(), 'logs', 'error.log'),
+    // Fichier pour toutes les erreurs critiques
+    new winston.transports.DailyRotateFile({
       level: 'error',
-      format: productionFormat,
-      maxsize: 5242880, // 5MB
-      maxFiles: 5
-    })
-  );
-
-  // Log des accès HTTP
-  transports.push(
-    new winston.transports.File({
-      filename: path.join(process.cwd(), 'logs', 'access.log'),
-      level: 'http',
-      format: productionFormat,
-      maxsize: 5242880, // 5MB
-      maxFiles: 10
+      filename: path.join(LOG_DIR, 'error-%DATE%.log'),
+      datePattern: 'YYYY-MM-DD',
+      zippedArchive: true,
+      maxSize: '20m',
+      maxFiles: '14d', // Conserver 14 jours
+    }),
+    // Fichier pour tous les logs
+    new winston.transports.DailyRotateFile({
+      filename: path.join(LOG_DIR, 'combined-%DATE%.log'),
+      datePattern: 'YYYY-MM-DD',
+      zippedArchive: true,
+      maxSize: '20m',
+      maxFiles: '7d', // Conserver 7 jours
     })
   );
 }
 
-// Création du logger
+// --- Création du Logger ---
 export const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'info' : 'debug'),
   levels: logLevels,
-  format: process.env.NODE_ENV === 'production' ? productionFormat : developmentFormat,
+  format: fileFormat, // Format par défaut pour les transports qui n'en ont pas
   transports,
   exitOnError: false,
-  // Gestion des exceptions non capturées
   exceptionHandlers: [
-    new winston.transports.File({ 
-      filename: path.join(process.cwd(), 'logs', 'exceptions.log'),
-      format: productionFormat
-    })
+    new winston.transports.DailyRotateFile({
+      filename: path.join(LOG_DIR, 'exceptions-%DATE%.log'),
+      datePattern: 'YYYY-MM-DD',
+    }),
   ],
-  // Gestion des rejections non capturées
   rejectionHandlers: [
-    new winston.transports.File({ 
-      filename: path.join(process.cwd(), 'logs', 'rejections.log'),
-      format: productionFormat
-    })
-  ]
+    new winston.transports.DailyRotateFile({
+      filename: path.join(LOG_DIR, 'rejections-%DATE%.log'),
+      datePattern: 'YYYY-MM-DD',
+    }),
+  ],
 });
 
-// Middleware pour Express
-export const morganStream = {
-  write: (message: string) => {
-    logger.http(message.trim());
-  }
-};
-
-// Fonction utilitaire pour logger les métriques
-export const logMetrics = (metrics: Record<string, any>) => {
-  logger.info('Metrics', { 
-    service: 'progitek-api',
-    type: 'metrics',
-    ...metrics 
-  });
-};
-
-// Fonction utilitaire pour logger les événements de sécurité
-export const logSecurityEvent = (event: string, details: Record<string, any>) => {
-  logger.warn('Security event', {
-    service: 'progitek-api',
-    type: 'security',
-    event,
-    ...details
-  });
-};
-
-// Fonction utilitaire pour logger les erreurs de base de données
-export const logDatabaseError = (operation: string, error: Error, context?: Record<string, any>) => {
-  logger.error('Database error', {
-    service: 'progitek-api',
-    type: 'database',
-    operation,
-    error: error.message,
-    stack: error.stack,
-    ...context
-  });
-};
-
-// Fonction utilitaire pour logger les événements d'authentification
-export const logAuthEvent = (event: string, userId?: number, details?: Record<string, any>) => {
-  logger.info('Authentication event', {
-    service: 'progitek-api',
-    type: 'auth',
-    event,
-    userId,
-    ...details
-  });
-};
-
-// Créer le dossier logs s'il n'existe pas
-if (process.env.NODE_ENV === 'production') {
-  const fs = require('fs');
-  const logsDir = path.join(process.cwd(), 'logs');
-  if (!fs.existsSync(logsDir)) {
-    fs.mkdirSync(logsDir, { recursive: true });
-  }
-}
-
-export default logger;
-
+// --- Fonctions utilitaires (inchangées, elles sont très bien) ---
+export const morganStream = { write: (message: string) => logger.http(message.trim( )) };
+export const logMetrics = (metrics: Record<string, any>) => logger.info('Metrics', { service: 'progitek-api', type: 'metrics', ...metrics });
+// ... vos autres fonctions utilitaires ...

@@ -18,6 +18,10 @@ import dashboardRoutes from './dashboard';
 import userRoutes from './users';
 import { apiLimiter } from '@/middleware/rateLimiter';
 
+// --- AJOUTER CET IMPORT ---
+import logRoutes from './log.routes';
+import adminRoutes from './admin.routes';
+
 const router: Router = Router();
 
 // Health check
@@ -76,5 +80,8 @@ router.use('/group-messages', groupMessageReactionsRoutes);
 router.use('/notifications', apiLimiter, notificationRoutes);
 router.use('/dashboard', apiLimiter, dashboardRoutes);
 router.use('/stock', apiLimiter, stockRoutes);
+// Toutes les requêtes vers /api/logs seront gérées ici
+router.use('/logs', logRoutes);
+router.use('/admin', adminRoutes); 
 
 export default router;

@@ -1,8 +1,17 @@
-import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
+// Fichier : /var/www/progiteck/frontend/src/lib/api.ts
+
+import axios, { 
+  AxiosInstance, 
+  AxiosError, 
+  InternalAxiosRequestConfig,
+  AxiosResponse,
+  AxiosRequestConfig // CORRECTION : Ajout de l'import manquant
+} from 'axios';
 import { UnknownRecord } from '@/types';
 import { logger } from '@/utils/logger';
 
-interface ApiResponse<T = any> {
+// Interface pour la réponse standard de votre API
+interface ApiResponse<T = unknown> {
   success: boolean;
   message: string;
   data?: T;
@@ -15,147 +24,215 @@ interface ApiResponse<T = any> {
   };
 }
 
+// Interface personnalisée pour la configuration des requêtes
+interface RetryableAxiosRequestConfig extends InternalAxiosRequestConfig {
+  _retry?: boolean;
+}
+
 class ApiClient {
-  private client: AxiosInstance;
+  private readonly client: AxiosInstance;
   private accessToken: string | null = null;
   private refreshToken: string | null = null;
-  private requestQueue: Array<() => void> = [];
+  private readonly requestQueue: Array<() => void> = [];
   private isRefreshing = false;
 
   constructor() {
+    const baseURL = this.getBaseUrl();
     this.client = axios.create({
-      baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000',
-      timeout: import.meta.env.VITE_API_TIMEOUT || 30000,
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      baseURL,
+      timeout: this.getTimeout(),
+      headers: this.getDefaultHeaders(),
     });
 
     this.setupInterceptors();
-    this.loadTokensFromStorage();
+    this.loadTokens();
+  }
+
+  private getBaseUrl(): string {
+    if (import.meta.env.PROD) {
+      return '/';
+    }
+    return import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+  }
+
+  private getTimeout( ): number {
+    return parseInt(import.meta.env.VITE_API_TIMEOUT || '30000');
+  }
+
+  private getDefaultHeaders() {
+    return {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      ...(import.meta.env.VITE_APP_NAME && { 'X-App-Name': import.meta.env.VITE_APP_NAME }),
+      ...(import.meta.env.VITE_APP_VERSION && { 'X-App-Version': import.meta.env.VITE_APP_VERSION })
+    };
   }
 
   private setupInterceptors() {
-    // Request interceptor pour ajouter le token
     this.client.interceptors.request.use(
-      (config) => {
-        if (this.accessToken) {
-          config.headers.Authorization = `Bearer ${this.accessToken}`;
-        }
-        return config;
-      },
-      (error) => Promise.reject(error)
+      (config: InternalAxiosRequestConfig) => this.handleRequest(config),
+      (error: AxiosError) => Promise.reject(error)
     );
-
-    // Response interceptor pour gérer le refresh token
     this.client.interceptors.response.use(
-      (response) => response,
-      async (error) => {
-        // Gestion spéciale pour erreur 429 (Rate Limiting)
-        if (error.response?.status === 429) {
-          const retryAfter = error.response.headers['retry-after'] || 2;
-          logger.warn(`Rate limit atteint, attente de ${retryAfter} secondes...`);
-          await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
-          // Retry automatique une seule fois
-          if (!error.config._retryCount) {
-            error.config._retryCount = 1;
-            return this.client(error.config);
-          }
-        }
-        // Gestion spéciale pour erreur 429 (Rate Limiting)
-        if (error.response?.status === 429) {
-          logger.warn('Rate limit atteint, attente de 2 secondes...');
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          // Retry automatique une seule fois
-          if (!error.config._retryCount) {
-            error.config._retryCount = 1;
-            return this.client(error.config);
-          }
-        }
-        
-        const originalRequest = error.config;
-
-        if (error.response?.status === 401 && !originalRequest._retry && !this.isRefreshing) {
-          originalRequest._retry = true;
-
-          // Si déjà en cours de refresh, ajouter à la queue
-          if (this.isRefreshing) {
-            return new Promise((resolve) => {
-              this.requestQueue.push(() => {
-                originalRequest.headers.Authorization = `Bearer ${this.accessToken}`;
-                resolve(this.client(originalRequest));
-              });
-            });
-          }
-
-          this.isRefreshing = true;
-
-          try {
-            await this.refreshAccessToken();
-            originalRequest.headers.Authorization = `Bearer ${this.accessToken}`;
-            
-            // Traiter la queue des requêtes en attente
-            this.requestQueue.forEach(callback => callback());
-            this.requestQueue = [];
-            
-            return this.client(originalRequest);
-          } catch (refreshError) {
-            this.logout();
-            window.location.href = '/login';
-            return Promise.reject(refreshError);
-          } finally {
-            this.isRefreshing = false;
-          }
-        }
-
-        return Promise.reject(error);
-      }
+      (response: AxiosResponse) => response,
+      (error: AxiosError) => this.handleError(error)
     );
   }
 
-  private loadTokensFromStorage() {
-    this.accessToken = localStorage.getItem('accessToken');
-    this.refreshToken = localStorage.getItem('refreshToken');
+  private handleRequest(config: InternalAxiosRequestConfig): InternalAxiosRequestConfig {
+    if (this.accessToken) {
+      config.headers.Authorization = `Bearer ${this.accessToken}`;
+    }
+    return config;
   }
 
-  private saveTokensToStorage(accessToken: string, refreshToken: string) {
-    this.accessToken = accessToken;
-    this.refreshToken = refreshToken;
-    localStorage.setItem('accessToken', accessToken);
-    localStorage.setItem('refreshToken', refreshToken);
+  private async handleError(error: AxiosError) {
+    const config = error.config as RetryableAxiosRequestConfig;
+    if (!config) return Promise.reject(error);
+
+    if (error.response?.status === 429) {
+      return this.handleRateLimit(error);
+    }
+
+    if (error.response?.status === 401 && !config._retry) {
+      return this.handleUnauthorized(error);
+    }
+
+    this.logError(error);
+    return Promise.reject(error);
+  }
+
+  private async handleRateLimit(error: AxiosError) {
+    const retryAfterHeader = error.response?.headers?.['retry-after'];
+    const retryAfter = typeof retryAfterHeader === 'string' ? parseInt(retryAfterHeader, 10) : 2;
+    logger.warn(`Rate limit reached, waiting ${retryAfter} seconds...`);
+    await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+    return this.client(error.config as InternalAxiosRequestConfig);
+  }
+
+  private async handleUnauthorized(error: AxiosError) {
+    const originalRequest = error.config as RetryableAxiosRequestConfig;
+    originalRequest._retry = true;
+
+    if (this.isRefreshing) {
+      return new Promise((resolve) => {
+        this.requestQueue.push(() => {
+          if (originalRequest.headers) {
+            originalRequest.headers.Authorization = `Bearer ${this.accessToken}`;
+          }
+          resolve(this.client(originalRequest));
+        });
+      });
+    }
+
+    this.isRefreshing = true;
+
+    try {
+      await this.refreshAccessToken();
+      if (originalRequest.headers) {
+        originalRequest.headers.Authorization = `Bearer ${this.accessToken}`;
+      }
+      this.processRequestQueue();
+      return this.client(originalRequest);
+    } catch (refreshError) {
+      this.handleRefreshError(refreshError);
+      return Promise.reject(refreshError);
+    } finally {
+      this.isRefreshing = false;
+    }
+  }
+
+  private processRequestQueue() {
+    this.requestQueue.forEach(callback => callback());
+    this.requestQueue.length = 0;
+  }
+
+  private handleRefreshError(error: unknown) {
+    this.logout();
+    if (this.shouldReportErrors()) {
+      logger.error('Refresh token failed, logging out.', error);
+    }
+  }
+
+  private logError(error: AxiosError) {
+    if (this.shouldReportErrors()) {
+      logger.error('API Error:', {
+        url: error.config?.url,
+        status: error.response?.status,
+        data: error.response?.data
+      });
+    }
+  }
+
+  private shouldReportErrors(): boolean {
+    return import.meta.env['VITE_ENABLE_ERROR_REPORTING'] === 'true';
+  }
+
+  private loadTokens() {
+    if (typeof window !== 'undefined') {
+      this.accessToken = localStorage.getItem('accessToken');
+      this.refreshToken = localStorage.getItem('refreshToken');
+    }
   }
 
   private async refreshAccessToken(): Promise<void> {
     if (!this.refreshToken) {
       throw new Error('No refresh token available');
     }
-
-    const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/auth/refresh`, {
+    const response = await this.client.post('/api/auth/refresh', {
       refreshToken: this.refreshToken,
     });
 
-    const { accessToken } = response.data.data;
-    this.accessToken = accessToken;
-    localStorage.setItem('accessToken', accessToken);
+    const newAccessToken = response.data?.data?.accessToken;
+    if (typeof newAccessToken === 'string') {
+      this.accessToken = newAccessToken;
+      localStorage.setItem('accessToken', this.accessToken);
+    } else {
+      throw new Error('Invalid access token received from refresh endpoint');
+    }
   }
 
-  public async login(email: string, motDePasse: string): Promise<ApiResponse> {
-    const response = await this.client.post('/api/auth/login', {
-      email,
-      motDePasse,
-    });
-
-    const { tokens } = response.data.data;
-    this.saveTokensToStorage(tokens.accessToken, tokens.refreshToken);
-
+  public async login(email: string, password: string): Promise<ApiResponse<any>> {
+    const response = await this.client.post('/api/auth/login', { email, motDePasse: password });
+    if (response.data.success && response.data.data?.tokens) {
+      this.saveTokens(response.data.data.tokens);
+      this.trackEvent('UserLogin', { email });
+    }
     return response.data;
   }
 
+  private saveTokens(tokens: { accessToken: string; refreshToken: string }) {
+    // CORRECTION : On s'assure que les tokens sont bien des chaînes avant de les sauvegarder
+    if (typeof tokens.accessToken === 'string' && typeof tokens.refreshToken === 'string') {
+      this.accessToken = tokens.accessToken;
+      this.refreshToken = tokens.refreshToken;
+      localStorage.setItem('accessToken', this.accessToken);
+      localStorage.setItem('refreshToken', this.refreshToken);
+    } else {
+      logger.error('Invalid tokens received from login endpoint', tokens);
+    }
+  }
+
   public logout(): void {
+    this.trackEvent('UserLogout');
+    this.clearTokens();
+  }
+
+  private clearTokens() {
     this.accessToken = null;
     this.refreshToken = null;
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
+  }
+
+  private trackEvent(eventName: string, payload?: UnknownRecord) {
+    if (this.shouldTrackAnalytics()) {
+      logger.debug(`Tracking event: ${eventName}`, payload);
+    }
+  }
+
+  private shouldTrackAnalytics(): boolean {
+    return import.meta.env['VITE_ENABLE_ANALYTICS'] === 'true';
   }
 
   public async get<T>(url: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
@@ -164,36 +241,12 @@ class ApiClient {
   }
 
   public async post<T>(url: string, data?: UnknownRecord, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
-    // Nettoyer les données avant envoi - supprimer seulement undefined
-    if (data && typeof data === 'object') {
-      // Supprimer seulement les valeurs undefined, garder null et chaînes vides
-      const cleanData: UnknownRecord = {};
-      for (const [key, value] of Object.entries(data)) {
-        if (value !== undefined) {
-          cleanData[key] = value;
-        }
-      }
-      data = cleanData;
-    }
-    
-    if (import.meta.env.VITE_DEBUG_MODE === 'true') {
-      logger.debug('API POST:', { url, data });
-    }
-    
     const response = await this.client.post(url, data, config);
-    if (import.meta.env.VITE_DEBUG_MODE === 'true') {
-      logger.debug('API Response:', response.data);
-    }
     return response.data;
   }
 
   public async put<T>(url: string, data?: UnknownRecord, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
     const response = await this.client.put(url, data, config);
-    return response.data;
-  }
-
-  public async patch<T>(url: string, data?: UnknownRecord, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
-    const response = await this.client.patch(url, data, config);
     return response.data;
   }
 
