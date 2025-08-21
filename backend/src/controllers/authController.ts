@@ -1,185 +1,139 @@
 import { Request, Response } from 'express';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
 import { prisma } from '@/config/database';
 import { sendSuccess, sendError } from '@/utils/response';
 import { logger } from '@/config/logger';
-import { AuthTokenPayload } from '@/types';
+import { CreateUserRequest, UpdateUserRequest } from '@/types';
+import bcrypt from 'bcrypt';
 
-interface LoginRequest {
-  email: string;
-  motDePasse: string;
-}
-
-export const login = async (req: Request, res: Response): Promise<void> => {
+export const createUser = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email, motDePasse }: LoginRequest = req.body;
+    const {
+      nom, prenom, email, motDePasse, phone, roleId, status,
+      theme, displayName, address, state, country, designation
+    }: CreateUserRequest = req.body;
 
-    // Trouver l'utilisateur
-    const user = await prisma.utilisateur.findUnique({
-      where: { email },
-      include: {
-        role: true
-      }
-    });
-
-    if (!user) {
-      sendError(res, 'Email ou mot de passe incorrect', 401);
-      return;
+    const existingUser = await prisma.utilisateur.findUnique({ where: { email } });
+    if (existingUser) {
+      return sendError(res, 'Un utilisateur avec cet email existe déjà', 400);
     }
 
-    // Vérifier le mot de passe
-    const isValidPassword = await bcrypt.compare(motDePasse, user.motDePasse);
-    if (!isValidPassword) {
-      sendError(res, 'Email ou mot de passe incorrect', 401);
-      return;
+    const role = await prisma.role.findUnique({ where: { id: roleId } });
+    if (!role) {
+      return sendError(res, 'Rôle non trouvé', 404);
     }
 
-    // Vérifier que le compte est actif
-    if (user.status !== 'active') {
-      sendError(res, 'Compte désactivé', 401);
-      return;
-    }
+    const hashedPassword = await bcrypt.hash(motDePasse, 12);
 
-    const jwtSecret = process.env.JWT_SECRET;
-    const jwtRefreshSecret = process.env.JWT_REFRESH_SECRET;
-
-    if (!jwtSecret || !jwtRefreshSecret) {
-      logger.error('JWT secrets not configured');
-      sendError(res, 'Configuration serveur manquante');
-      return;
-    }
-
-    // Créer les tokens
-    const tokenPayload: AuthTokenPayload = {
-      userId: user.id,
-      id: user.id,
-      email: user.email,
-      role: user.role.libelle
-    };
-
-    const accessToken = jwt.sign(tokenPayload, jwtSecret, { expiresIn: '1h' });
-    const refreshToken = jwt.sign(tokenPayload, jwtRefreshSecret, { expiresIn: '7d' });
-
-    // Mettre à jour la dernière connexion
-    await prisma.utilisateur.update({
-      where: { id: user.id },
-      data: { lastLogin: new Date() }
-    });
-
-    const responseData = {
-      user: {
-        id: user.id,
-        nom: user.nom,
-        prenom: user.prenom,
-        email: user.email,
-        phone: user.phone,
-        theme: user.theme,
-        displayName: user.displayName,
-        role: user.role
+    const user = await prisma.utilisateur.create({
+      data: {
+        nom,
+        prenom,
+        email,
+        motDePasse: hashedPassword,
+        phone: phone || null,
+        roleId,
+        status: status || 'active',
+        theme: theme || 'light',
+        displayName: displayName || `${prenom} ${nom}`,
+        address: address || null,
+        state: state || null,
+        country: country || null,
+        designation: designation || null,
       },
-      tokens: {
-        accessToken,
-        refreshToken
+      select: { 
+        id: true, 
+        nom: true, 
+        prenom: true, 
+        email: true, 
+        phone: true, 
+        role: { select: { id: true, libelle: true } },
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+        theme: true,
+        displayName: true,
+        address: true,
+        state: true,
+        country: true,
+        designation: true,
       }
-    };
-
-    sendSuccess(res, responseData, 'Connexion réussie');
-  } catch (error) {
-    logger.error('Login error:', error);
-    sendError(res, 'Erreur lors de la connexion');
-  }
-};
-
-export const refreshToken = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { refreshToken } = req.body;
-
-    if (!refreshToken) {
-      sendError(res, 'Refresh token requis', 401);
-      return;
-    }
-
-    const jwtRefreshSecret = process.env.JWT_REFRESH_SECRET;
-    const jwtSecret = process.env.JWT_SECRET;
-
-    if (!jwtRefreshSecret || !jwtSecret) {
-      logger.error('JWT secrets not configured');
-      sendError(res, 'Configuration serveur manquante');
-      return;
-    }
-
-    const decoded = jwt.verify(refreshToken, jwtRefreshSecret) as AuthTokenPayload;
-
-    // Vérifier que l'utilisateur existe toujours
-    const user = await prisma.utilisateur.findUnique({
-      where: { id: decoded.userId },
-      include: { role: true }
     });
 
-    if (!user || user.status !== 'active') {
-      sendError(res, 'Utilisateur non trouvé ou inactif', 401);
-      return;
-    }
-
-    // Créer un nouveau access token
-    const tokenPayload: AuthTokenPayload = {
-      userId: user.id,
-      id: user.id,
-      email: user.email,
-      role: user.role.libelle
-    };
-
-    const accessToken = jwt.sign(tokenPayload, jwtSecret, { expiresIn: '1h' });
-
-    sendSuccess(res, { accessToken }, 'Token rafraîchi avec succès');
+    sendSuccess(res, user, 'Utilisateur créé avec succès', 201);
   } catch (error) {
-    logger.error('Refresh token error:', error);
-    sendError(res, 'Token invalide', 401);
+    logger.error('Error creating user:', error);
+    sendError(res, 'Erreur lors de la création de l\'utilisateur');
   }
 };
 
-export const getProfile = async (req: Request, res: Response): Promise<void> => {
+export const getUserById = async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = (req as any).user?.id;
-
-    if (!userId) {
-      sendError(res, 'Utilisateur non authentifié', 401);
-      return;
-    }
-
+    const userId = parseInt(req.params.id || '0', 10);
+    if (isNaN(userId) || userId === 0) return sendError(res, "ID d'utilisateur invalide", 400);
     const user = await prisma.utilisateur.findUnique({
       where: { id: userId },
-      include: {
-        role: true,
-        technicien: {
-          include: {
-            specialite: true
-          }
-        }
+      select: { id: true, nom: true, prenom: true, email: true, phone: true, theme: true, displayName: true, address: true, state: true, country: true, designation: true, balance: true, emailStatus: true, kycStatus: true, lastLogin: true, status: true, createdAt: true, role: { select: { id: true, libelle: true } }, technicien: { select: { id: true, contact: true, specialite: { select: { id: true, libelle: true } } } }, _count: { select: { messages: true, messagesReceived: true, notifications: true, auditLogs: true } } }
+    });
+    if (!user) return sendError(res, 'Utilisateur non trouvé', 404);
+    sendSuccess(res, user, 'Utilisateur récupéré avec succès');
+  } catch (error) {
+    logger.error('Error fetching user:', error);
+    sendError(res, 'Erreur lors de la récupération de l\'utilisateur');
+  }
+};
+
+export const updateUser = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = parseInt(req.params.id || '0', 10);
+    if (isNaN(userId) || userId === 0) return sendError(res, "ID d'utilisateur invalide", 400);
+
+    const updateData: UpdateUserRequest = req.body;
+
+    if (updateData.motDePasse) {
+      updateData.motDePasse = await bcrypt.hash(updateData.motDePasse, 12);
+    }
+
+    const updatedUser = await prisma.utilisateur.update({
+      where: { id: userId },
+      data: updateData,
+      select: { 
+        id: true, 
+        nom: true, 
+        prenom: true, 
+        email: true, 
+        phone: true, 
+        role: { select: { id: true, libelle: true } },
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+        theme: true,
+        displayName: true,
+        address: true,
+        state: true,
+        country: true,
+        designation: true,
       }
     });
 
-    if (!user) {
-      sendError(res, 'Utilisateur non trouvé', 404);
-      return;
-    }
-
-    const userData = {
-      id: user.id,
-      nom: user.nom,
-      prenom: user.prenom,
-      email: user.email,
-      phone: user.phone,
-      theme: user.theme,
-      displayName: user.displayName,
-      role: user.role,
-      technicien: user.technicien
-    };
-
-    sendSuccess(res, userData, 'Profil récupéré avec succès');
+    sendSuccess(res, updatedUser, 'Utilisateur mis à jour avec succès');
   } catch (error) {
-    logger.error('Get profile error:', error);
-    sendError(res, 'Erreur lors de la récupération du profil');
+    logger.error('Error updating user:', error);
+    sendError(res, 'Erreur lors de la mise à jour de l\'utilisateur');
+  }
+};
+
+export const deleteUser = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = parseInt(req.params.id || '0', 10);
+    if (isNaN(userId) || userId === 0) return sendError(res, "ID d'utilisateur invalide", 400);
+
+    await prisma.utilisateur.delete({
+      where: { id: userId }
+    });
+
+    sendSuccess(res, null, 'Utilisateur supprimé avec succès', 204);
+  } catch (error) {
+    logger.error('Error deleting user:', error);
+    sendError(res, 'Erreur lors de la suppression de l\'utilisateur');
   }
 };

@@ -7,7 +7,8 @@ import {
   updateClient,
   deleteClient
 } from '@/controllers/clientController';
-import { authenticateToken, requireRoles } from '@/middleware/auth';
+import { authenticateToken } from '@/middleware/auth';
+import { requirePermission } from '@/middleware/permissions';
 import { validate } from '@/middleware/validation';
 import { cache, invalidateCache } from '@/middleware/cache';
 
@@ -149,6 +150,7 @@ const updateClientValidation = [
  */
 router.get('/', 
   authenticateToken, 
+  requirePermission('clients', 'read'),
   cache({ ttl: 300 }), // Cache 5 minutes
   getClients
 );
@@ -176,6 +178,7 @@ router.get('/',
  */
 router.get('/:id', 
   authenticateToken, 
+  requirePermission('clients', 'read'),
   cache({ ttl: 600 }), // Cache 10 minutes
   getClientById
 );
@@ -202,7 +205,7 @@ router.get('/:id',
  */
 router.post('/', 
   authenticateToken, 
-  requireRoles(['admin', 'manager', 'commercial']),
+  requirePermission('clients', 'create'),
   validate(createClientValidation),
   invalidateCache(['GET:/api/clients*']),
   createClient
@@ -239,7 +242,7 @@ router.post('/',
  */
 router.put('/:id', 
   authenticateToken, 
-  requireRoles(['admin', 'manager', 'commercial']),
+  requirePermission('clients', 'update'),
   validate(updateClientValidation),
   invalidateCache(['GET:/api/clients*']),
   updateClient
@@ -268,7 +271,7 @@ router.put('/:id',
  */
 router.delete('/:id', 
   authenticateToken, 
-  requireRoles(['admin']),
+  requirePermission('clients', 'delete'),
   invalidateCache(['GET:/api/clients*']),
   deleteClient
 );

@@ -55,7 +55,7 @@ export default function Header() {
             className="w-8 h-8 object-contain rounded-lg"
           />
           <span className="text-xl font-semibold text-gray-900 dark:text-white hidden md:inline-block">
-            ProgTrak
+            ProgiTeck
           </span>
         </div>
 

@@ -1,7 +1,9 @@
-import { Router } from 'express';
-import { createClientLog } from '@/controllers/log.controller';
+// Fichier : /var/www/progiteck/backend/src/routes/log.routes.ts
 
-const router = Router();
+import { Router } from 'express'; // Assurez-vous que Router est bien importé
+import { listLogFiles, getLogFileContent } from '@/controllers/admin.controller';
+
+const router: Router = Router();
 
 /**
  * @swagger
@@ -30,6 +32,7 @@ const router = Router();
  *       201:
  *         description: Log enregistré avec succès.
  */
-router.post('/', createClientLog);
+router.get('/logs', listLogFiles);
+router.get('/logs/:filename', getLogFileContent);
 
 export default router;

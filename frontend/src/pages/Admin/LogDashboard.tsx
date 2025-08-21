@@ -1,5 +1,3 @@
-// Fichier : /var/www/progiteck/frontend/src/pages/Admin/LogDashboard.tsx
-
 import { useState, useEffect } from 'react';
 import { apiClient } from '@/lib/api'; // Assurez-vous que ce chemin est correct
 

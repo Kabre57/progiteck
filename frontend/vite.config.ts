@@ -1,23 +1,20 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import path from 'path';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 
-// https://vitejs.dev/config/
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
 export default defineConfig({
   plugins: [react()],
-  optimizeDeps: {
-    exclude: ['lucide-react'],
+  define: {
+    'process.server': JSON.stringify(false),
+    'import.meta.env.VITE_API_BASE_URL': JSON.stringify(process.env.VITE_API_BASE_URL),
   },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
-  },
-  server: {
-    host: true,
-    allowedHosts: ['5173-ixm48sljnwnt6qlg8ufwf-d3e1c6a3.manusvm.computer'],
-    hmr: {
-      overlay: false
-    }
-  },
+  }
 });
+

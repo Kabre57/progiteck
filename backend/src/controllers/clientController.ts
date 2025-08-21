@@ -3,36 +3,29 @@ import { prisma } from '@/config/database';
 import { AuthenticatedRequest } from '@/middleware/auth';
 import { sendSuccess, sendSuccessWithPagination, sendError } from '@/utils/response';
 import { getPagination, createPaginationMeta } from '@/utils/pagination';
+import { logger } from '@/config/logger';
+
 // Définition locale du type pour la mise à jour du client
 type UpdateClientData = {
   nom?: string;
-  prenom?: string;
   email?: string;
-  phone?: string | null;
-  theme?: string;
-  displayName?: string | null;
-  address?: string | null;
-  state?: string | null;
-  country?: string | null;
-  designation?: string | null;
-  typePaiementId?: number;
+  telephone?: string | null;
+  entreprise?: string | null;
+  typeDeCart?: string | null;
+  typePaiementId?: number | null;
   statut?: string;
+  localisation?: string | null;
 };
-import { logger } from '@/config/logger';
 
-export const getClients = async (
-  req: AuthenticatedRequest,
-  res: Response
-): Promise<void> => {
+export const getClients = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const { page, limit, search } = req.query;
     const pagination = getPagination({
-      page: page ? parseInt(page as string) : undefined,
-      limit: limit ? parseInt(limit as string) : undefined
+      page: page ? parseInt(page as string, 10) : undefined,
+      limit: limit ? parseInt(limit as string, 10) : undefined
     });
 
-    const where: Record<string, unknown> = {};
-
+    const where: any = {};
     if (search) {
       where.OR = [
         { nom: { contains: search as string, mode: 'insensitive' } },
@@ -44,19 +37,8 @@ export const getClients = async (
     const [clients, total] = await Promise.all([
       prisma.client.findMany({
         where,
-        include: {
-          typePaiement: true,
-          _count: {
-            select: {
-              missions: true,
-              devis: true,
-              factures: true
-            }
-          }
-        },
-        orderBy: {
-          dateDInscription: 'desc'
-        },
+        include: { typePaiement: true, _count: { select: { missions: true, devis: true, factures: true } } },
+        orderBy: { dateDInscription: 'desc' },
         skip: pagination.skip,
         take: pagination.take
       }),
@@ -64,53 +46,24 @@ export const getClients = async (
     ]);
 
     const paginationMeta = createPaginationMeta(total, pagination.page, pagination.limit);
-
-    sendSuccessWithPagination(
-      res,
-      clients,
-      paginationMeta,
-      'Clients récupérés avec succès'
-    );
+    sendSuccessWithPagination(res, clients, paginationMeta, 'Clients récupérés avec succès');
   } catch (error) {
     logger.error('Error fetching clients:', error);
     sendError(res, 'Erreur lors de la récupération des clients');
   }
 };
 
-export const getClientById = async (
-  req: AuthenticatedRequest,
-  res: Response
-): Promise<void> => {
+export const getClientById = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
-    if (!id) {
-      sendError(res, "Paramètre 'id' manquant", 400);
-      return;
-    }
-    const clientId = parseInt(id);
+    const clientId = parseInt(req.params.id || '0', 10);
+    if (isNaN(clientId) || clientId === 0) return sendError(res, "ID de client invalide", 400);
 
     const client = await prisma.client.findUnique({
       where: { id: clientId },
-      include: {
-        typePaiement: true,
-        missions: true,
-        devis: true,
-        factures: true,
-        _count: {
-          select: {
-            missions: true,
-            devis: true,
-            factures: true
-          }
-        }
-      }
+      include: { typePaiement: true, missions: true, devis: true, factures: true, _count: { select: { missions: true, devis: true, factures: true } } }
     });
 
-    if (!client) {
-      sendError(res, 'Client non trouvé', 404);
-      return;
-    }
-
+    if (!client) return sendError(res, 'Client non trouvé', 404);
     sendSuccess(res, client, 'Client récupéré avec succès');
   } catch (error) {
     logger.error('Error fetching client:', error);
@@ -118,76 +71,28 @@ export const getClientById = async (
   }
 };
 
-export const createClient = async (
-  req: AuthenticatedRequest,
-  res: Response
-): Promise<void> => {
+export const createClient = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const {
-      nom,
-      email,
-      entreprise,
-      typeDeCart,
-      typePaiementId,
-      localisation
-  } = req.body;
-    let telephone = req.body.telephone;
+    const { nom, email, entreprise, typeDeCart, typePaiementId, localisation } = req.body;
+    let { telephone } = req.body;
 
-    // Normaliser le numéro de téléphone avant sauvegarde
     if (telephone) {
       const cleanedPhone = telephone.replace(/[^\d]/g, "");
-      // Optionnel : formater le numéro pour l\"affichage
-      if (cleanedPhone.length === 10) {
-        telephone = cleanedPhone.replace(/(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/, 
-          "$1 $2 $3 $4 $5");
-      } else if (cleanedPhone.length === 8) {
-        telephone = cleanedPhone.replace(/(\d{2})(\d{2})(\d{2})(\d{2})/, 
-          "$1 $2 $3 $4");
-      }
+      if (cleanedPhone.length === 10) telephone = cleanedPhone.replace(/(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/, "$1 $2 $3 $4 $5");
+      else if (cleanedPhone.length === 8) telephone = cleanedPhone.replace(/(\d{2})(\d{2})(\d{2})(\d{2})/, "$1 $2 $3 $4");
     }
 
-    // Vérifier que l\'email n\'existe pas déjà
-    const existingClient = await prisma.client.findUnique({
-      where: { email }
-    });
+    const existingClient = await prisma.client.findUnique({ where: { email } });
+    if (existingClient) return sendError(res, 'Un client avec cet email existe déjà', 400);
 
-    if (existingClient) {
-      sendError(res, 'Un client avec cet email existe déjà', 400);
-      return;
-    }
-
-    // Si typePaiementId est fourni, vérifier qu'il existe
     if (typePaiementId) {
-      const typePaiement = await prisma.typePaiement.findUnique({
-        where: { id: typePaiementId }
-      });
-
-      if (!typePaiement) {
-        sendError(res, 'Type de paiement non trouvé', 404);
-        return;
-      }
+      const typePaiement = await prisma.typePaiement.findUnique({ where: { id: typePaiementId } });
+      if (!typePaiement) return sendError(res, 'Type de paiement non trouvé', 404);
     }
 
     const client = await prisma.client.create({
-      data: {
-        nom,
-        email,
-        telephone,
-        entreprise,
-        typeDeCart: typeDeCart || 'Standard',
-        typePaiementId,
-        localisation
-      },
-      include: {
-        typePaiement: true,
-        _count: {
-          select: {
-            missions: true,
-            devis: true,
-            factures: true
-          }
-        }
-      }
+      data: { nom, email, telephone, entreprise, typeDeCart: typeDeCart || 'Standard', typePaiementId, localisation },
+      include: { typePaiement: true, _count: { select: { missions: true, devis: true, factures: true } } }
     });
 
     sendSuccess(res, client, 'Client créé avec succès', 201);
@@ -197,66 +102,30 @@ export const createClient = async (
   }
 };
 
-export const updateClient = async (
-  req: AuthenticatedRequest,
-  res: Response
-): Promise<void> => {
+export const updateClient = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
-    if (!id) {
-      sendError(res, "Paramètre 'id' manquant", 400);
-      return;
-    }
-    const clientId = parseInt(id);
+    const clientId = parseInt(req.params.id || '0', 10);
+    if (isNaN(clientId) || clientId === 0) return sendError(res, "ID de client invalide", 400);
+    
     const updateData: UpdateClientData = req.body;
 
-    // Vérifier que le client existe
-    const existingClient = await prisma.client.findUnique({
-  where: { id: clientId }
-    });
+    const existingClient = await prisma.client.findUnique({ where: { id: clientId } });
+    if (!existingClient) return sendError(res, 'Client non trouvé', 404);
 
-    if (!existingClient) {
-      sendError(res, 'Client non trouvé', 404);
-      return;
-    }
-
-    // Si email est modifié, vérifier qu'il n'existe pas déjà
     if (updateData.email && updateData.email !== existingClient.email) {
-      const emailExists = await prisma.client.findUnique({
-        where: { email: updateData.email }
-      });
-
-      if (emailExists) {
-        sendError(res, 'Un client avec cet email existe déjà', 400);
-        return;
-      }
+      const emailExists = await prisma.client.findUnique({ where: { email: updateData.email } });
+      if (emailExists) return sendError(res, 'Un client avec cet email existe déjà', 400);
     }
 
-    // Si typePaiementId est fourni, vérifier qu'il existe
     if (updateData.typePaiementId) {
-      const typePaiement = await prisma.typePaiement.findUnique({
-        where: { id: updateData.typePaiementId }
-      });
-
-      if (!typePaiement) {
-        sendError(res, 'Type de paiement non trouvé', 404);
-        return;
-      }
+      const typePaiement = await prisma.typePaiement.findUnique({ where: { id: updateData.typePaiementId } });
+      if (!typePaiement) return sendError(res, 'Type de paiement non trouvé', 404);
     }
 
     const client = await prisma.client.update({
       where: { id: clientId },
       data: updateData,
-      include: {
-        typePaiement: true,
-        _count: {
-          select: {
-            missions: true,
-            devis: true,
-            factures: true
-          }
-        }
-      }
+      include: { typePaiement: true, _count: { select: { missions: true, devis: true, factures: true } } }
     });
 
     sendSuccess(res, client, 'Client mis à jour avec succès');
@@ -266,47 +135,23 @@ export const updateClient = async (
   }
 };
 
-export const deleteClient = async (
-  req: AuthenticatedRequest,
-  res: Response
-): Promise<void> => {
+export const deleteClient = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
-    if (!id) {
-      sendError(res, "Paramètre 'id' manquant", 400);
-      return;
-    }
-    const clientId = parseInt(id);
+    const clientId = parseInt(req.params.id || '0', 10);
+    if (isNaN(clientId) || clientId === 0) return sendError(res, "ID de client invalide", 400);
 
-    // Vérifier que le client existe
     const client = await prisma.client.findUnique({
       where: { id: clientId },
-      include: {
-        missions: true,
-        devis: true,
-        factures: true
-      }
+      include: { missions: true, devis: true, factures: true }
     });
 
-    if (!client) {
-      sendError(res, 'Client non trouvé', 404);
-      return;
-    }
+    if (!client) return sendError(res, 'Client non trouvé', 404);
 
-    // Vérifier qu'il n'y a pas de données liées
     if (client.missions.length > 0 || client.devis.length > 0 || client.factures.length > 0) {
-      sendError(
-        res,
-        'Impossible de supprimer un client avec des missions, devis ou factures associés',
-        400
-      );
-      return;
+      return sendError(res, 'Impossible de supprimer un client avec des missions, devis ou factures associés', 400);
     }
 
-    await prisma.client.delete({
-      where: { id: clientId }
-    });
-
+    await prisma.client.delete({ where: { id: clientId } });
     sendSuccess(res, null, 'Client supprimé avec succès');
   } catch (error) {
     logger.error('Error deleting client:', error);

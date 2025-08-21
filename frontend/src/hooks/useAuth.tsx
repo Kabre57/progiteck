@@ -7,7 +7,7 @@ import { logger } from '@/utils/logger';
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, motDePasse: string) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
   hasRole: (roles: string[]) => boolean;
@@ -20,12 +20,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // ✅ AMÉLIORATION : Mémorisation de la fonction checkAuthStatus
   const checkAuthStatus = useCallback(async () => {
     try {
       if (apiClient.isAuthenticated()) {
         const response = await apiClient.get('/api/users/profile');
-        setUser(response.data);
+        if (response.success) {
+          setUser(response.data);
+        } else {
+          // Si le token est valide mais que le profil n'est pas trouvé, déconnecter
+          apiClient.logout();
+          setUser(null);
+        }
       }
     } catch (error) {
       logger.error('Auth check failed:', error);
@@ -44,11 +49,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       setLoading(true);
       const response = await apiClient.login(email, motDePasse);
-      setUser(response.data.user);
-      toast.success('Connexion réussie');
+      if (response.success) {
+        setUser(response.data.user);
+        toast.success('Connexion réussie');
+      } else {
+        // Gérer les erreurs de login renvoyées par l'API
+        const errorMessage = response.message || 'Erreur de connexion';
+        toast.error(errorMessage);
+        throw new Error(errorMessage);
+      }
     } catch (error: any) {
       logger.error('Login failed:', error);
-      const errorMessage = error.response?.data?.message || 'Erreur de connexion';
+      const errorMessage = error.response?.data?.message || 'Une erreur de réseau est survenue.';
       toast.error(errorMessage);
       throw error;
     } finally {
@@ -62,24 +74,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     toast.success('Déconnexion réussie');
   }, []);
 
-  // ✅ AMÉLIORATION : Fonction pour rafraîchir les données utilisateur
   const refreshUser = useCallback(async () => {
-    if (!apiClient.isAuthenticated()) {
-      return;
-    }
-    
+    if (!apiClient.isAuthenticated()) return;
     try {
       const response = await apiClient.get('/api/users/profile');
-      setUser(response.data);
+      if (response.success) {
+        setUser(response.data);
+      }
     } catch (error) {
       logger.error('User refresh failed:', error);
-      // Ne pas déconnecter automatiquement en cas d'erreur de rafraîchissement
     }
   }, []);
 
-  // ✅ AMÉLIORATION : Mémorisation de la fonction hasRole
-  const hasRole = useCallback((roles: string[]): boolean => {
-    return user ? roles.includes(user.role.libelle) : false;
+  // =================================================================
+  // === CORRECTION CLÉ : Logique du Super Administrateur ===
+  // =================================================================
+  const hasRole = useCallback((requiredRoles: string[]): boolean => {
+    if (!user || !user.role) {
+      return false;
+    }
+
+    // Si l'utilisateur est ADMIN, il a accès à tout.
+    if (user.role.libelle === 'ADMIN') {
+      return true;
+    }
+
+    // Sinon, on vérifie si son rôle est dans la liste des rôles requis.
+    return requiredRoles.includes(user.role.libelle);
   }, [user]);
 
   return (
@@ -99,7 +120,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
-export const useAuth = () => {
+// Note : Le hook useAuth n'a pas besoin d'être modifié, il consomme directement le contexte.
+export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');

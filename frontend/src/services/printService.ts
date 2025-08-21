@@ -19,12 +19,12 @@ export class PrintService {
   private static getCompanyInfo(): string {
     return `
       <div class="company-header">
-        <img src="${this.getCompanyLogo()}" alt="Progi-Teck Logo" class="logo" />
+        <img src="${this.getCompanyLogo()}" alt="ProgiTeck Logo" class="logo" />
         <div class="company-details">
-          <h1>Progi-Teck</h1>
+          <h1>ProgiTeck</h1>
           <p>Parceque le monde avance</p>
           <p>Système de Gestion Technique</p>
-          <p>Email: contact@progi-teck.ci | Tél: +225 27 20 30 40 50</p>
+          <p>Email: contact@ProgiTeck.ci | Tél: +225 27 20 30 40 50</p>
           <p>Abidjan, Côte d'Ivoire</p>
         </div>
       </div>
@@ -308,14 +308,14 @@ export class PrintService {
         ` : ''}
         
         <div class="signatures">
-          <div class="signature-box">Progi-Teck</div>
+          <div class="signature-box">ProgiTeck</div>
           <div class="signature-box">Direction</div>
           <div class="signature-box">Client</div>
         </div>
         
         <div class="footer">
           <p>Devis généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}</p>
-          <p>Progi-Teck - Système de Gestion Technique - www.progi-teck.ci</p>
+          <p>ProgiTeck - Système de Gestion Technique - www.ProgiTeck.ci</p>
         </div>
       </body>
       </html>
@@ -406,14 +406,14 @@ export class PrintService {
         </div>
         
         <div class="signatures">
-          <div class="signature-box">Progi-Teck</div>
+          <div class="signature-box">ProgiTeck</div>
           <div class="signature-box">Comptabilité</div>
           <div class="signature-box">Client</div>
         </div>
         
         <div class="footer">
           <p>Facture générée le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}</p>
-          <p>Progi-Teck - Système de Gestion Technique - www.progi-teck.ci</p>
+          <p>ProgiTeck - Système de Gestion Technique - www.ProgiTeck.ci</p>
         </div>
       </body>
       </html>
@@ -605,7 +605,7 @@ export class PrintService {
         
         <div class="footer">
           <p>Fiche générée le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}</p>
-          <p>Progi-Teck - Système de Gestion Technique - www.progi-teck.ci</p>
+          <p>ProgiTeck - Système de Gestion Technique - www.ProgiTeck.ci</p>
         </div>
       </body>
       </html>

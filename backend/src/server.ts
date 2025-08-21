@@ -1,5 +1,11 @@
-import express from 'express';
-import '@/types';
+// Fichier : /src/server.ts
+
+// ✅ IMPORTANT : Ces deux lignes doivent être les toutes premières
+import 'module-alias/register';
+import dotenv from 'dotenv';
+dotenv.config({ path: process.env.NODE_ENV === 'production' ? '.env.production' : '.env' });
+
+import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
@@ -8,173 +14,126 @@ import { logger } from '@/config/logger';
 import { generalLimiter } from '@/middleware/rateLimiter';
 import { setupSwagger } from '@/config/swagger';
 import { cacheService } from '@/config/cache';
-import { performanceMonitoring, getHealthStatus } from '@/middleware/monitoring';
-import routes from '@/routes';
+import routes from '@/routes'; // Importe le routeur principal depuis index.ts
 
-const app: express.Application = express();
+const app: Application = express();
+
+// --- Configuration Essentielle ---
+// Faire confiance au premier proxy (Nginx) pour obtenir la vraie IP du client
+app.set('trust proxy', 1);
+
 const PORT = process.env.PORT || 3000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
-// Configuration CORS
+// --- Configuration CORS Robuste ---
+const allowedOrigins = [
+  'http://180.149.199.94',      // Accès via IP publique (port 80 par défaut )
+  'http://progiteck.tail',      // Accès via Tailscale
+  'https://100.115.117.118'     // Accès HTTPS via Tailscale
+];
+
+if (NODE_ENV === 'development' ) {
+  allowedOrigins.push('http://localhost:5173' );
+}
+
 const corsOptions = {
-  origin: NODE_ENV === 'development' ? true : (process.env.CORS_ORIGIN || 'http://localhost:5173'),
+  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      logger.warn(`Origine CORS bloquée : ${origin}`);
+      callback(new Error('Cette origine n\'est pas autorisée par la politique CORS.'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
 };
 
-// Middleware de sécurité
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'"],
-      imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'"],
-      fontSrc: ["'self'"],
-      objectSrc: ["'none'"],
-      mediaSrc: ["'self'"],
-      frameSrc: ["'none'"]
-    }
-  },
-  crossOriginEmbedderPolicy: false
-}));
+// --- Middlewares Globaux ---
+app.use(helmet()); // Sécurité des en-têtes HTTP
+app.use(cors(corsOptions)); // Gestion des requêtes cross-origin
+app.options('*', cors(corsOptions)); // Gère les requêtes pre-flight
+app.use(compression()); // Compression des réponses
+app.use(express.json({ limit: '10mb' })); // Parsing des body JSON
+app.use(express.urlencoded({ extended: true, limit: '10mb' })); // Parsing des body URL-encoded
+app.use(generalLimiter); // Limite de taux globale
 
-app.use(cors(corsOptions));
-
-// Middleware pour gérer les requêtes OPTIONS
-app.options('*', cors(corsOptions));
-
-app.use(compression());
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
-// Rate limiting global
-app.use(generalLimiter);
-
-// Performance monitoring
-app.use(performanceMonitoring);
 // Middleware de logging des requêtes
-app.use((req, res, next) => {
+app.use((req: Request, res: Response, next: NextFunction) => {
   const start = Date.now();
-  
   res.on('finish', () => {
     const duration = Date.now() - start;
-    logger.info(`${req.method} ${req.originalUrl} ${res.statusCode} - ${duration}ms`, {
+    logger.http(`${req.method} ${req.originalUrl} ${res.statusCode} - ${duration}ms`, {
       method: req.method,
       url: req.originalUrl,
       status: res.statusCode,
       duration,
       ip: req.ip,
-      userAgent: req.get('User-Agent')
+      userAgent: req.get('User-Agent' )
     });
   });
-  
   next();
 });
 
-// Middleware pour prévenir les erreurs de headers
-app.use((req, res, next) => {
-  let isResponseSent = false;
+// --- Routes de l'Application ---
+app.use('/api', routes); // Utilise le routeur principal pour toutes les routes /api
 
-  // Wrapper pour vérifier si la réponse a déjà été envoyée
-  const originalSend = res.send;
-  res.send = function (...args: any) {
-    if (isResponseSent) {
-      logger.warn('Attempted to send multiple responses', {
-        url: req.originalUrl,
-        method: req.method
-      });
-      return this;
-    }
-    isResponseSent = true;
-    return originalSend.apply(this, args);
-  };
-
-  next();
-});
-
-
-
-// Health check endpoint
-app.get("/health", (_req, res) => {
-  res.json(getHealthStatus());
-});
-
-// Metrics endpoint
-app.get("/metrics", (_req, res) => {
-  const healthStatus = getHealthStatus();
-  res.json({
-    totalRequests: healthStatus.requests.total,
-    averageResponseTime: `${Math.round(healthStatus.requests.averageResponseTime)}ms`,
-    errorRate: `${Math.round(healthStatus.requests.errorRate * 100) / 100}%`,
-    uptime: `${healthStatus.uptime}s`,
-    memoryUsage: `${healthStatus.memory.used}MB / ${healthStatus.memory.total}MB (${healthStatus.memory.percentage}%)`,
-    cpuUsage: `${healthStatus.cpu.usage}%`
-  });
-});
-// Routes API
-app.use('/api', routes);
-
-// Setup Swagger documentation
+// --- Documentation API (Swagger) ---
 setupSwagger(app);
-// Middleware de gestion des erreurs 404
-app.use('*', (req, res) => {
+
+// --- Gestion des Erreurs ---
+// Middleware pour les routes non trouvées (404)
+app.use((_req: Request, res: Response) => {
   res.status(404).json({
     success: false,
     message: 'Route non trouvée',
-    error: `Cannot ${req.method} ${req.originalUrl}`
+    error: `Cannot ${_req.method} ${_req.originalUrl}`
   });
 });
 
-// Middleware de gestion des erreurs globales
-app.use((error: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  logger.error('Unhandled error:', error);
-  
+// Middleware de gestion des erreurs globales (doit être le dernier `app.use`)
+app.use((error: Error, _req: Request, res: Response, _next: NextFunction) => {
+  logger.error('Unhandled error:', { message: error.message, stack: error.stack });
   res.status(500).json({
     success: false,
     message: 'Erreur interne du serveur',
-    error: NODE_ENV === 'development' ? error.message : 'Une erreur est survenue'
+    error: NODE_ENV === 'development' ? error.message : 'Une erreur inattendue est survenue.'
   });
 });
 
-// Fonction de démarrage du serveur
-async function startServer(): Promise<void> {
+// --- Démarrage du Serveur ---
+const startServer = async (): Promise<void> => {
   try {
-    // Test de la connexion à la base de données
+    // 1. Connexion à la base de données
     const dbConnected = await testDatabaseConnection();
     if (!dbConnected) {
-      logger.error('Failed to connect to database');
+      logger.error('Échec de la connexion à la base de données. Arrêt du serveur.');
       process.exit(1);
     }
 
-    // Initialize cache service
+    // 2. Connexion au cache Redis
     await cacheService.connect();
-    // Démarrage du serveur
+
+    // 3. Démarrage du serveur Express
     const server = app.listen(PORT, () => {
       logger.info(`🚀 Serveur Progitek démarré sur le port ${PORT}`);
       logger.info(`📊 Environnement: ${NODE_ENV}`);
-      logger.info(`🌐 CORS autorisé pour: ${corsOptions.origin}`);
-      logger.info(`📖 Documentation API: http://localhost:${PORT}/api-docs`);
-      logger.info(`🏥 Health check: http://localhost:${PORT}/health`);
-      logger.info(`📊 Métriques: http://localhost:${PORT}/metrics`);
+      logger.info(`🛡️  Paramètre 'trust proxy' configuré sur : ${app.get('trust proxy')}`);
     });
 
-    // Gestion de l'arrêt gracieux
+    // 4. Gestion de l'arrêt propre (graceful shutdown)
     const gracefulShutdown = async (signal: string) => {
       logger.info(`${signal} reçu, arrêt du serveur...`);
-      
       server.close(async () => {
-        logger.info('Serveur HTTP fermé');
-        
+        logger.info('Serveur HTTP fermé.');
         try {
           await cacheService.disconnect();
           await closeDatabaseConnection();
-          logger.info('Connexion base de données fermée');
+          logger.info('Connexions aux services externes fermées.');
           process.exit(0);
         } catch (error) {
-          logger.error('Erreur lors de la fermeture de la base de données:', error);
+          logger.error('Erreur lors de la fermeture des connexions:', error);
           process.exit(1);
         }
       });
@@ -184,12 +143,12 @@ async function startServer(): Promise<void> {
     process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
   } catch (error) {
-    logger.error('Erreur lors du démarrage du serveur:', error);
+    logger.error('Erreur critique lors du démarrage du serveur:', error);
     process.exit(1);
   }
-}
+};
 
-// Démarrage du serveur
+// Lancement du serveur
 startServer();
 
 export default app;

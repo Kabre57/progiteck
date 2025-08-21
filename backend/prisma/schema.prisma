@@ -11,12 +11,65 @@ datasource db {
 }
 
 model Role {
-  id      Int    @id @default(autoincrement())
-  libelle String @unique
+  id          Int      @id @default(autoincrement())
+  libelle     String   @unique
+  description String?  // Description du rôle
+  isDefault   Boolean  @default(false) // Rôle par défaut pour nouveaux utilisateurs
+  isSystem    Boolean  @default(false) // Rôle système (non modifiable)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  utilisateurs Utilisateur[]
+  utilisateurs    Utilisateur[]
+  rolePermissions RolePermission[]
 
   @@map("roles")
+}
+
+model Permission {
+  id          Int      @id @default(autoincrement())
+  resource    String   // Nom de la ressource (ex: "clients", "missions")
+  action      String   // Action CRUD (ex: "create", "read", "update", "delete")
+  description String?  // Description humaine de la permission
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  rolePermissions RolePermission[]
+  userPermissions UserPermission[]
+
+  @@unique([resource, action]) // Une seule permission par couple ressource/action
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           Int @id @default(autoincrement())
+  roleId       Int
+  permissionId Int
+  createdAt    DateTime @default(now())
+
+  // Relations
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId]) // Un rôle ne peut avoir qu'une fois la même permission
+  @@map("role_permissions")
+}
+
+model UserPermission {
+  id           Int @id @default(autoincrement())
+  userId       Int
+  permissionId Int
+  granted      Boolean  @default(true) // true = accordée, false = refusée
+  createdAt    DateTime @default(now())
+  createdBy    Int?     // Utilisateur qui a accordé cette permission
+
+  // Relations
+  user       Utilisateur @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission Permission  @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  grantedBy  Utilisateur? @relation("PermissionGranter", fields: [createdBy], references: [id])
+
+  @@unique([userId, permissionId]) // Un utilisateur ne peut avoir qu'une fois la même permission
+  @@map("user_permissions")
 }
 
 model Utilisateur {
@@ -53,6 +106,10 @@ model Utilisateur {
   devisValidesPDG         Devis[]                  @relation("DevisValidateurPDG")
   historiqueModifications HistoriqueModification[] // Ajout de la relation inverse
   piecesJointes           PieceJointe[] // Ajout de la relation inverse
+  
+  // Nouvelles relations pour les permissions
+  userPermissions     UserPermission[]
+  permissionsGranted  UserPermission[] @relation("PermissionGranter")
 
   @@map("utilisateurs")
 }

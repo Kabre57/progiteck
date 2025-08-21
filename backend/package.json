@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Backend API pour ProgiTeck System",
   "main": "dist/server.js",
+  "moduleAliases": {
+    "@": "dist"
+  },
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
@@ -12,22 +15,26 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
+    "db:seed:permissions": "tsx src/scripts/seedPermissions.ts",
     "lint": "eslint src --ext .ts",
     "test": "jest"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
+    "@types/express-serve-static-core": "^5.0.7",
     "bcryptjs": "^2.4.3",
     "bull": "^4.12.0",
     "compression": "^1.7.4",
     "cors": "^2.8.5",
     "date-fns": "^4.1.0",
+    "dotenv": "^17.2.1",
     "express": "^4.18.2",
     "express-rate-limit": "^7.1.5",
     "express-validator": "^7.0.1",
     "helmet": "^7.1.0",
     "joi": "^17.11.0",
     "jsonwebtoken": "^9.0.2",
+    "module-alias": "^2.2.3",
     "multer": "^2.0.0",
     "nodemailer": "^6.9.7",
     "redis": "^4.7.1",
@@ -56,8 +63,18 @@
     "prisma": "^5.22.0",
     "supertest": "^7.0.0",
     "ts-jest": "^29.1.1",
+    "ts-node": "^10.9.2",
     "tsx": "^4.6.0",
     "typescript": "^5.3.2"
+  },
+  "_moduleAliases": {
+    "@": "dist",
+    "@types": "dist/types",
+    "@controllers": "dist/controllers",
+    "@services": "dist/services",
+    "@middleware": "dist/middleware",
+    "@utils": "dist/utils",
+    "@config": "dist/config"
   },
   "keywords": [
     "ProgiTeck",

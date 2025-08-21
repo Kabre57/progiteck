@@ -42,7 +42,7 @@ export default function UsersPage() {
         total: allUsers.length,
         active: allUsers.filter(u => u.status === 'active').length,
         inactive: allUsers.filter(u => u.status === 'inactive').length,
-        admins: allUsers.filter(u => u.role.libelle === 'admin').length,
+        admins: allUsers.filter(u => u.role.libelle === 'ADMIN').length,
       });
     } catch (error) {
       console.error('Failed to load stats:', error);
@@ -329,7 +329,7 @@ const handleUpdate = async (data: Partial<CreateUserData>) => {
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Gestion des Utilisateurs</h1>
-            <p className="text-gray-600 dark:text-gray-400">Gérez les comptes utilisateurs du système (DG/PDG uniquement)</p>
+            <p className="text-gray-600 dark:text-gray-400">Gérez les comptes utilisateurs du système </p>
           </div>
           <button
             onClick={() => setShowCreateModal(true)}

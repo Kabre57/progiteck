@@ -38,13 +38,20 @@ export const sendSuccessWithPagination = <T>(
   res.status(200).json(response);
 };
 
-export const errorResponse = (message: string, error?: string): ApiResponse<unknown> => {
-  const response: ApiResponse<unknown> = {
-    success: false,
+export const successResponse = (res: Response, message: string, data?: any, statusCode: number = 200): Response => {
+  return res.status(statusCode).json({
+    success: true,
     message,
-    ...(error && { error })
-  };
-  return response;
+    data
+  });
+};
+
+
+export const errorResponse = (res: Response, message: string, statusCode: number = 500): Response => {
+  return res.status(statusCode).json({
+    success: false,
+    error: message
+  });
 };
 
 export const sendError = (

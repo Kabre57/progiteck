@@ -1,5 +1,7 @@
+// Fichier : /var/www/progiteck/backend/src/config/logger.ts
+
 import winston from 'winston';
-import 'winston-daily-rotate-file';
+import 'winston-daily-rotate-file'; // Assurez-vous d'installer ce module
 import path from 'path';
 import fs from 'fs';
 
